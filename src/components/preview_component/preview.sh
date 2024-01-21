@@ -36,8 +36,9 @@ run_preview() {
     rm -rf gcclassic
     ln -s ${RunTemplate}/gcclassic .
 
-    # Link to restart file
-    RestartFilePreview=${RestartFilePreviewPrefix}${StartDate}_0000z.nc4
+    # Link to restart file (needs to be the restart after spinup and TROPOMI correction)
+    # RestartFilePreview=${RestartFilePreviewPrefix}${StartDate}_0000z.nc4
+    RestartFilePreview=/n/holyscratch01/jacob_lab/mhe/Global_IMI_2021/spinup_run/Restarts/GEOSChem.Restart.20210101_0000z.nc4
     ln -s $RestartFilePreview Restarts/GEOSChem.Restart.${StartDate}_0000z.nc4
     if "$UseBCsForRestart"; then
         sed -i -e "s|SpeciesRst|SpeciesBC|g" HEMCO_Config.rc
@@ -94,7 +95,7 @@ run_preview() {
 
     # Specify inputs for preview script
     config_path=${InversionPath}/${ConfigFile}
-    state_vector_path=${RunDirs}/StateVector.nc
+    state_vector_path=${RunDirs}/NativeStateVector.nc
     preview_dir=${RunDirs}/${runDir}
     tropomi_cache=${RunDirs}/data_TROPOMI
     preview_file=${InversionPath}/src/inversion_scripts/imi_preview.py
