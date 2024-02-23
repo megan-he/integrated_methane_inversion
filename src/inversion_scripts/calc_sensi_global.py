@@ -1,6 +1,7 @@
 import numpy as np
 import xarray as xr
 import datetime
+import calendar
 from joblib import Parallel, delayed
 from src.inversion_scripts.utils import zero_pad_num_hour
 
@@ -84,60 +85,72 @@ def calc_sensi(
                     sensi[element,:,:,:] = sens
                 save sensi as netcdf with appropriate coordinate variables
     """
+    run_dirs_path = "/n/holylfs05/LABS/jacob_lab/Users/jeast/proj/globalinv/prod/output"
+    startday = "20180601"
+    endday = "20190201"
+    nelements = 3753
+    
     # subtract by 1 because here we assume .5 is a +50% perturbation
     perturbation = perturbation - 1
 
-    # Make date range
-    days = []
+    # Make date range (of months)
+    months = []
     dt = datetime.datetime.strptime(startday, "%Y%m%d")
     dt_max = datetime.datetime.strptime(endday, "%Y%m%d")
+    dt = dt.replace(day=1)
     while dt < dt_max:
-        dt_str = str(dt)[0:10].replace("-", "")
-        days.append(dt_str)
-        delta = datetime.timedelta(days=1)
-        dt += delta
+        dt_str = dt.strftime("%Y%m%d")
+        months.append(dt_str)
+        # Move to the first day of the next month
+        _, days_in_month = calendar.monthrange(dt.year, dt.month)
+        dt = (dt + datetime.timedelta(days=days_in_month)).replace(day=1)
 
     # Loop over model data to get sensitivities
-    hours = range(24)
-    elements = range(nelements)
+    # hours = range(24)
+    elements = range(1, nelements) # 1 to 3753
 
-    # For each day
-    for d in days:
-        # Load the base run SpeciesConc file
-        base_data = xr.load_dataset(
-            f"{run_dirs_pth}/{run_name}_0000/OutputDir/GEOSChem.SpeciesConc.{d}_0000z.nc4"
-        )
-        # Count nlat, nlon, nlev
-        nlon = len(base_data["lon"])  # 52
-        nlat = len(base_data["lat"])  # 61
-        nlev = len(base_data["lev"])  # 47
-        base_var = base_data["SpeciesConcVV_CH4"] # Read base data before loop
-
-        # Save this data into numpy array so we don't need to read files in loop
-        pert_datas = []
-         # For each state vector element
-        for e in elements:
-            # State vector elements are numbered 1..nelements
-            elem = zero_pad_num(e + 1)
-            # Load the SpeciesConc file for the current element and day
-            pert_data = xr.open_dataset(
-                f"{run_dirs_pth}/{run_name}_{elem}/OutputDir/GEOSChem.SpeciesConc.{d}_0000z.nc4",
-                chunks='auto'
+    # For each month
+    for m in months:
+        # define perturbation months for the current month
+        for i, m in enumerate(months):
+            if i + 2 < len(months):
+                pert_months = months[i:i+3] # looks like ["20180601", "20180701", "20180801"] for june 2018
+        for pert in pert_months:
+            # Load the base run XCH4 file for each perturbation month
+            base_data = xr.load_dataset(
+                f"{run_dirs_path}/imi_{m}/inversion/data_converted_nc/out_imi_{m}_{pert}_000000.nc"
             )
-            pert_datas.append(pert_data)
-            pert_data.close()
+
+            # Count nlat, nlon, nlev
+            nlon = len(base_data["lon"])  # 144
+            nlat = len(base_data["lat"])  # 91
+            base_var = base_data["geoschem_methane"] # Read base data before loop
+
+            # Save this data into numpy array so we don't need to read files in loop
+            pert_datas = []
+            # For each file (state vector element)
+            for e in elements:
+                # State vector elements are numbered 1..nelements
+                elem = zero_pad_num(e)
+                # Load the month 1 XCH4 perturbation file for the current element
+                pert_data = xr.open_dataset(
+                    f"{run_dirs_path}/imi_{m}/inversion/data_converted_nc/out_imi_{m}_{pert}_00{elem}.nc",
+                    chunks='auto'
+                )
+                pert_datas.append(pert_data)
+                pert_data.close()
 
         # For each hour
         def process(h):
             # Get the base run data for the hour
-            base = base_data["SpeciesConcVV_CH4"][h, :, :, :]
+            base = base_data["geoschem_methane"][h, :, :, :]
             # Initialize sensitivities array
-            sensi = np.empty((nelements, nlev, nlat, nlon))
+            sensi = np.empty((nelements, nlat, nlon))
             sensi.fill(np.nan)
             # For each state vector element
             for e in elements:
                 # Get the data for the current hour
-                pert = pert_data["SpeciesConcVV_CH4"][h, :, :, :]
+                pert = pert_data["geoschem_methane"][h, :, :, :]
                 # Compute and store the sensitivities
                 if ((perturbationOH > 0.0) and (e >= nelements-1)):
                     sensitivities = (pert.values - base.values) / perturbationOH
