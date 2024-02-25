@@ -37,6 +37,21 @@ def test_GC_output_for_BC_perturbations(e, nelements, sensitivities):
         check = np.mean(sensitivities[:,:,0:3])
     assert abs(check - 1e-9) < 1e-11, f"GC CH4 perturb not working... perturbation is off by {abs(check - 1e-9)} mol/mol/ppb"
 
+def perturbation_months(current_month):
+    pert_months = []
+    
+    month1 = datetime.datetime.strptime(current_month, "%Y%m%d")
+
+    last_day = calendar.monthrange(month1.year, month1.month)[1]
+
+    # Calculate the next two months
+    month2 = month1 + datetime.timedelta(days=last_day)
+    month3 = month2 + datetime.timedelta(days=calendar.monthrange(month2.year, month2.month)[1])
+
+    pert_months = [month1.strftime("%Y%m%d"), month2.strftime("%Y%m%d"), month3.strftime("%Y%m%d")]
+
+    return pert_months
+
 def calc_sensi(
         nelements, perturbation, startday, endday, run_dirs_pth, run_name, sensi_save_pth, perturbationBC, perturbationOH
 ):
@@ -85,11 +100,7 @@ def calc_sensi(
                     sensi[element,:,:,:] = sens
                 save sensi as netcdf with appropriate coordinate variables
     """
-    run_dirs_pth = "/n/holylfs05/LABS/jacob_lab/Users/jeast/proj/globalinv/prod/output"
-    startday = "20180601"
-    endday = "20190201"
-    nelements = 3753
-    
+
     # subtract by 1 because here we assume .5 is a +50% perturbation
     perturbation = perturbation - 1
 
@@ -104,6 +115,7 @@ def calc_sensi(
         # Move to the first day of the next month
         _, days_in_month = calendar.monthrange(dt.year, dt.month)
         dt = (dt + datetime.timedelta(days=days_in_month)).replace(day=1)
+    print(f"months: {months}")
 
     # Loop over model data to get sensitivities
     # hours = range(24)
@@ -112,10 +124,8 @@ def calc_sensi(
     def process(m):
         # For each month, load base and pert files
         for m in months:
-            # define perturbation months for the current month
-            for i, m in enumerate(months):
-                if i + 2 < len(months):
-                    pert_months = months[i:i+3] # looks like ["20180601", "20180701", "20180801"] for june 2018
+            pert_months = perturbation_months(m)
+            print(pert_months)
             for pert in pert_months:
                 # Load the base run XCH4 file for each perturbation month
                 base_data = xr.load_dataset(
@@ -194,12 +204,12 @@ if __name__ == "__main__":
     nelements = 3753
     perturbation = 1.5
     startday = "20180601"
-    endday = "20190201"
+    endday = "20180701"
     run_dirs_pth = "/n/holylfs05/LABS/jacob_lab/Users/jeast/proj/globalinv/prod/output"
     run_name = None
     sensi_save_pth = "/n/holyscratch01/jacob_lab/mhe/calc_sensi_test"
     perturbationBC = None
-    perturbationBC = None
+    perturbationOH = None
 
     calc_sensi(
         nelements,
