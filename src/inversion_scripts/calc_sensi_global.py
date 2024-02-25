@@ -121,70 +121,84 @@ def calc_sensi(
     # hours = range(24)
     elements = range(1, nelements+1) # 1 to 3753
 
-    def process(m):
+    # def process(m):
         # For each month, load base and pert files
-        for m in months:
-            pert_months = perturbation_months(m)
-            print(pert_months)
-            for pert in pert_months:
-                # Load the base run XCH4 file for each perturbation month
-                base_data = xr.load_dataset(
-                    f"{run_dirs_pth}/imi_{m}/inversion/data_converted_nc/out_imi_{m}_{pert}_000000.nc"
+    for m in months:
+        # pert_months = perturbation_months(m)
+        pert_months = ['20180601']
+        print(pert_months)
+        for p in pert_months:
+            # Load the base run XCH4 file for each perturbation month
+            print(f"starting to load base data for pert month {p}")
+            base_data = xr.open_dataset(
+                f"{run_dirs_pth}/imi_{m}/inversion/data_converted_nc/out_imi_{m}_{p}_000000.nc"
+            )
+            print(f"base data loaded for pert month {p}")
+            
+            # Count nlat, nlon, nlev
+            nlon = len(base_data["lon"])  # 144
+            nlat = len(base_data["lat"])  # 91
+            base = base_data["geoschem_methane"] # Read base data before loop
+            base_data.close()
+
+            # Save this data into numpy array so we don't need to read files in loop
+            # pert_datas = []
+            # For each state vector element
+            for e in elements:
+                print(f"iteration {e}")
+                # State vector elements are numbered 1..nelements
+                elem = zero_pad_num(e)
+                # Load the month 1 XCH4 perturbation file for the current element
+                pert_data = xr.open_dataset(
+                    f"{run_dirs_pth}/imi_{m}/inversion/data_converted_nc/out_imi_{m}_{p}_00{elem}.nc",
+                    chunks='auto'
                 )
+                print(f"pert data loaded for element {e}")
+                pert = pert_data["geoschem_methane"]
+                pert_data.close()
+                print("pert data closed")
+                # pert_datas.append(pert_data)
+                
 
-                # Count nlat, nlon, nlev
-                nlon = len(base_data["lon"])  # 144
-                nlat = len(base_data["lat"])  # 91
-                base = base_data["geoschem_methane"] # Read base data before loop
+                # Initialize sensitivities array
+                # sensi = np.empty((nelements, nlat, nlon))
+                # sensi.fill(np.nan)
 
-                # Save this data into numpy array so we don't need to read files in loop
-                # pert_datas = []
-                # For each state vector element
-                for e in elements:
-                    # State vector elements are numbered 1..nelements
-                    elem = zero_pad_num(e)
-                    # Load the month 1 XCH4 perturbation file for the current element
-                    pert_data = xr.open_dataset(
-                        f"{run_dirs_pth}/imi_{m}/inversion/data_converted_nc/out_imi_{m}_{pert}_00{elem}.nc",
-                        chunks='auto'
-                    )
-                    # pert_datas.append(pert_data)
-                    pert = pert_data["geoschem_methane"]
-                    pert_data.close()
-
-                    # Initialize sensitivities array
-                    sensi = np.empty((nelements, nlat, nlon))
-                    sensi.fill(np.nan)
-
-                    # Compute and store the sensitivities
-                    if ((perturbationOH > 0.0) and (e >= nelements-1)):
-                        sensitivities = (pert.values - base.values) / perturbationOH
-                    elif (perturbationBC > 0.0):
-                        if ((perturbationOH > 0.0) and (e >= (nelements-5))) or ((perturbationOH <= 0.0) and (e >= (nelements-4))):
-                            sensitivities = (pert.values - base.values) / perturbationBC # this is np array with time, lat, lon dimensions
-                            # if h != 0: # because we take the first hour on the first day from spinup
-                            #     test_GC_output_for_BC_perturbations(e, nelements, sensitivities)
-                    else:
-                        sensitivities = (pert.values - base.values) / perturbation
-                    sensi[e, :, :] = sensitivities
+                # Compute and store the sensitivities
+                # if ((perturbationOH > 0.0) and (e >= nelements-1)):
+                #     sensitivities = (pert.values - base.values) / perturbationOH
+                # elif (perturbationBC > 0.0):
+                #     if ((perturbationOH > 0.0) and (e >= (nelements-5))) or ((perturbationOH <= 0.0) and (e >= (nelements-4))):
+                #         sensitivities = (pert.values - base.values) / perturbationBC # this is np array with time, lat, lon dimensions
+                #         # if h != 0: # because we take the first hour on the first day from spinup
+                #         #     test_GC_output_for_BC_perturbations(e, nelements, sensitivities)
+                if (perturbation > 0.0):
+                    sensitivities = (pert.values - base.values) / perturbation
+                # sensi = sensitivities
+                print(f"sensi calculated for element {e}")
+            
                 # Save sensi as netcdf with appropriate coordinate variables
                 sensi = xr.DataArray(
-                    sensi,
+                    sensitivities,
                     coords=(
-                        np.arange(1, nelements + 1),
+                        np.arange(1, sensitivities.shape[0] + 1),
                         base.lat,
                         base.lon,
                     ),
                     dims=["element", "lat", "lon"],
                     name="Sensitivities",
                 )
+                print("converted to xr")
                 sensi = sensi.to_dataset()
+                print("converted to dataset")
                 sensi.to_netcdf(
-                    f"{sensi_save_pth}/sensi_{m}_{pert}.nc",
+                    f"{sensi_save_pth}/sensi_{m}_{p}_{elem}.nc",
                     encoding={v: {"zlib": True, "complevel": 9} for v in sensi.data_vars},
                 )
+                print("saved")
 
-    results = Parallel(n_jobs=-1)(delayed(process)(m) for m in months)
+
+    # results = Parallel(n_jobs=-1)(delayed(process)(m) for m in months)
     print(f"Saved GEOS-Chem sensitivity files to {sensi_save_pth}")
 
 
