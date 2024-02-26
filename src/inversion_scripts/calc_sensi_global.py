@@ -121,11 +121,10 @@ def calc_sensi(
     # hours = range(24)
     elements = range(1, nelements+1) # 1 to 3753
 
-    # def process(m):
+    def process(m):
         # For each month, load base and pert files
-    for m in months:
         # pert_months = perturbation_months(m)
-        pert_months = ['20180601']
+        pert_months = ['20180601'] # for testing
         print(pert_months)
         for p in pert_months:
             # Load the base run XCH4 file for each perturbation month
@@ -133,11 +132,11 @@ def calc_sensi(
                 f"{run_dirs_pth}/imi_{m}/inversion/data_converted_nc/out_imi_{m}_{p}_000000.nc"
             )
             
-            # Count nlat, nlon, nlev
+            # Count nlat, nlon, timestep
             nlon = len(base_data["lon"])  # 144
             nlat = len(base_data["lat"])  # 91
-            time = len(base_data["time"])
             base = base_data["geoschem_methane"] # Read base data before loop
+            K = base_data["K"]
             base_data.close()
 
             # Save this data into numpy array so we don't need to read files in loop
@@ -157,8 +156,8 @@ def calc_sensi(
                 
 
                 # Initialize sensitivities array
-                sensi = np.empty((nelements, time, nlat, nlon))
-                sensi.fill(np.nan)
+                # sensi = np.empty((nelements, nlat, nlon))
+                # sensi.fill(np.nan)
 
                 # Compute and store the sensitivities
                 # if ((perturbationOH > 0.0) and (e >= nelements-1)):
@@ -170,28 +169,28 @@ def calc_sensi(
                 #         #     test_GC_output_for_BC_perturbations(e, nelements, sensitivities)
                 if (perturbation > 0.0):
                     sensitivities = (pert.values - base.values) / perturbation
-                sensi[e, :, :, :] = sensitivities
+                K[:, :, :, e] = sensitivities
             
-                # EDIT THIS
-                # Save sensi as netcdf with appropriate coordinate variables
-                sensi = xr.DataArray(
-                    sensitivities,
-                    coords=(
-                        np.arange(1, sensitivities.shape[0] + 1),
-                        base.lat,
-                        base.lon,
-                    ),
-                    dims=["element", "lat", "lon"],
-                    name="Sensitivities",
-                )
-                sensi = sensi.to_dataset()
-                sensi.to_netcdf(
-                    f"{sensi_save_pth}/sensi_{m}_{p}_{elem}.nc",
-                    encoding={v: {"zlib": True, "complevel": 9} for v in sensi.data_vars},
-                )
+            # Save sensi as netcdf with appropriate coordinate variables
+            sensi = xr.DataArray(
+                K,
+                coords=(
+                    base.time,
+                    base.lat,
+                    base.lon,
+                    np.arange(1, nelements+1)
+                ),
+                dims=["time", "lat", "lon", "element"],
+                name="Jacobian K",
+            )
+            sensi = sensi.to_dataset()
+            sensi.to_netcdf(
+                f"{sensi_save_pth}/sensi_{m}_{p}_{elem}.nc",
+                encoding={v: {"zlib": True, "complevel": 9} for v in sensi.data_vars},
+            )
 
 
-    # results = Parallel(n_jobs=-1)(delayed(process)(m) for m in months)
+    results = Parallel(n_jobs=-1)(delayed(process)(m) for m in months)
     print(f"Saved GEOS-Chem sensitivity files to {sensi_save_pth}")
 
 
