@@ -129,15 +129,14 @@ def calc_sensi(
         print(pert_months)
         for p in pert_months:
             # Load the base run XCH4 file for each perturbation month
-            print(f"starting to load base data for pert month {p}")
             base_data = xr.open_dataset(
                 f"{run_dirs_pth}/imi_{m}/inversion/data_converted_nc/out_imi_{m}_{p}_000000.nc"
             )
-            print(f"base data loaded for pert month {p}")
             
             # Count nlat, nlon, nlev
             nlon = len(base_data["lon"])  # 144
             nlat = len(base_data["lat"])  # 91
+            time = len(base_data["time"])
             base = base_data["geoschem_methane"] # Read base data before loop
             base_data.close()
 
@@ -145,7 +144,6 @@ def calc_sensi(
             # pert_datas = []
             # For each state vector element
             for e in elements:
-                print(f"iteration {e}")
                 # State vector elements are numbered 1..nelements
                 elem = zero_pad_num(e)
                 # Load the month 1 XCH4 perturbation file for the current element
@@ -153,16 +151,14 @@ def calc_sensi(
                     f"{run_dirs_pth}/imi_{m}/inversion/data_converted_nc/out_imi_{m}_{p}_00{elem}.nc",
                     chunks='auto'
                 )
-                print(f"pert data loaded for element {e}")
                 pert = pert_data["geoschem_methane"]
                 pert_data.close()
-                print("pert data closed")
                 # pert_datas.append(pert_data)
                 
 
                 # Initialize sensitivities array
-                # sensi = np.empty((nelements, nlat, nlon))
-                # sensi.fill(np.nan)
+                sensi = np.empty((nelements, time, nlat, nlon))
+                sensi.fill(np.nan)
 
                 # Compute and store the sensitivities
                 # if ((perturbationOH > 0.0) and (e >= nelements-1)):
@@ -174,9 +170,9 @@ def calc_sensi(
                 #         #     test_GC_output_for_BC_perturbations(e, nelements, sensitivities)
                 if (perturbation > 0.0):
                     sensitivities = (pert.values - base.values) / perturbation
-                # sensi = sensitivities
-                print(f"sensi calculated for element {e}")
+                sensi[e, :, :, :] = sensitivities
             
+                # EDIT THIS
                 # Save sensi as netcdf with appropriate coordinate variables
                 sensi = xr.DataArray(
                     sensitivities,
@@ -188,14 +184,11 @@ def calc_sensi(
                     dims=["element", "lat", "lon"],
                     name="Sensitivities",
                 )
-                print("converted to xr")
                 sensi = sensi.to_dataset()
-                print("converted to dataset")
                 sensi.to_netcdf(
                     f"{sensi_save_pth}/sensi_{m}_{p}_{elem}.nc",
                     encoding={v: {"zlib": True, "complevel": 9} for v in sensi.data_vars},
                 )
-                print("saved")
 
 
     # results = Parallel(n_jobs=-1)(delayed(process)(m) for m in months)
