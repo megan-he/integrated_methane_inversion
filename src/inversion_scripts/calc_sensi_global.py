@@ -129,7 +129,8 @@ def calc_sensi(
         for p in pert_months:
             # Load the base run XCH4 file for each perturbation month
             base_data = xr.open_dataset(
-                f"{run_dirs_pth}/imi_{m}/inversion/data_converted_nc/out_imi_{m}_{p}_000000.nc"
+                f"{run_dirs_pth}/imi_{m}/inversion/data_converted_nc/out_imi_{m}_{p}_000000.nc",
+                chunks='auto'
             )
             
             # Count nlat, nlon, timestep
@@ -137,12 +138,15 @@ def calc_sensi(
             nlat = len(base_data["lat"])  # 91
             base = base_data["geoschem_methane"] # Read base data before loop
             K = base_data["K"]
+            print("loaded K")
             base_data.close()
+            print("closed base data")
 
             # Save this data into numpy array so we don't need to read files in loop
             # pert_datas = []
             # For each state vector element
             for e in elements:
+                print(f"iteration number {e}")
                 # State vector elements are numbered 1..nelements
                 elem = zero_pad_num(e)
                 # Load the month 1 XCH4 perturbation file for the current element
@@ -152,6 +156,7 @@ def calc_sensi(
                 )
                 pert = pert_data["geoschem_methane"]
                 pert_data.close()
+                print("closed pert")
                 # pert_datas.append(pert_data)
                 
 
@@ -169,7 +174,9 @@ def calc_sensi(
                 #         #     test_GC_output_for_BC_perturbations(e, nelements, sensitivities)
                 if (perturbation > 0.0):
                     sensitivities = (pert.values - base.values) / perturbation
+                print("before saving K")
                 K[:, :, :, e] = sensitivities
+                print("after saving K")
             
             # Save sensi as netcdf with appropriate coordinate variables
             sensi = xr.DataArray(
@@ -183,11 +190,13 @@ def calc_sensi(
                 dims=["time", "lat", "lon", "element"],
                 name="Jacobian K",
             )
+            print("created sensi xarray")
             sensi = sensi.to_dataset()
             sensi.to_netcdf(
-                f"{sensi_save_pth}/sensi_{m}_{p}_{elem}.nc",
+                f"{sensi_save_pth}/sensi_{m}_{p}.nc",
                 encoding={v: {"zlib": True, "complevel": 9} for v in sensi.data_vars},
             )
+            print("converted to nc")
 
 
     results = Parallel(n_jobs=-1)(delayed(process)(m) for m in months)
