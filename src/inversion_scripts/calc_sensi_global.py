@@ -121,12 +121,13 @@ def calc_sensi(
     # hours = range(24)
     elements = range(nelements) # 0 to 3752
 
+    # TRY THIS
     def process(m):
         print(f"month: {m}")
-        # For each month, load base and pert files
         pert_months = perturbation_months(m)
         print(pert_months)
-        for p in pert_months:
+
+        def process_p(p):
             print(f"p: {p}")
             # Load the base run XCH4 file for each perturbation month
             base_data = xr.open_dataset(
@@ -200,6 +201,7 @@ def calc_sensi(
                 )
             print("converted to nc")
 
+        results_p = Parallel(n_jobs=-1)(delayed(process_p)(p) for p in pert_months)
 
     results = Parallel(n_jobs=-1)(delayed(process)(m) for m in months)
     print(f"Saved GEOS-Chem sensitivity files to {sensi_save_pth}")
@@ -220,8 +222,8 @@ if __name__ == "__main__":
 
     nelements = 3753
     perturbation = 1.5
-    startday = "20190101"
-    endday = "20190201"
+    startday = "20190201"
+    endday = "20190301"
     run_dirs_pth = "/n/holylfs05/LABS/jacob_lab/Users/jeast/proj/globalinv/prod/output"
     run_name = None
     sensi_save_pth = "/n/holyscratch01/jacob_lab/mhe/calc_sensi_test"
