@@ -119,14 +119,15 @@ def calc_sensi(
 
     # Loop over model data to get sensitivities
     # hours = range(24)
-    elements = range(1, nelements+1) # 1 to 3753
+    elements = range(nelements) # 0 to 3752
 
     def process(m):
+        print(f"month: {m}")
         # For each month, load base and pert files
-        # pert_months = perturbation_months(m)
-        pert_months = ['20180601'] # for testing
+        pert_months = perturbation_months(m)
         print(pert_months)
         for p in pert_months:
+            print(f"p: {p}")
             # Load the base run XCH4 file for each perturbation month
             base_data = xr.open_dataset(
                 f"{run_dirs_pth}/imi_{m}/inversion/data_converted_nc/out_imi_{m}_{p}_000000.nc",
@@ -138,9 +139,9 @@ def calc_sensi(
             nlat = len(base_data["lat"])  # 91
             base = base_data["geoschem_methane"] # Read base data before loop
             K = base_data["K"]
-            print("loaded K")
+            # print("loaded K")
             base_data.close()
-            print("closed base data")
+            # print("closed base data")
 
             # Save this data into numpy array so we don't need to read files in loop
             # pert_datas = []
@@ -148,7 +149,7 @@ def calc_sensi(
             for e in elements:
                 print(f"iteration number {e}")
                 # State vector elements are numbered 1..nelements
-                elem = zero_pad_num(e)
+                elem = zero_pad_num(e + 1)
                 # Load the month 1 XCH4 perturbation file for the current element
                 pert_data = xr.open_dataset(
                     f"{run_dirs_pth}/imi_{m}/inversion/data_converted_nc/out_imi_{m}_{p}_00{elem}.nc",
@@ -156,13 +157,7 @@ def calc_sensi(
                 )
                 pert = pert_data["geoschem_methane"]
                 pert_data.close()
-                print("closed pert")
                 # pert_datas.append(pert_data)
-                
-
-                # Initialize sensitivities array
-                # sensi = np.empty((nelements, nlat, nlon))
-                # sensi.fill(np.nan)
 
                 # Compute and store the sensitivities
                 # if ((perturbationOH > 0.0) and (e >= nelements-1)):
@@ -179,23 +174,30 @@ def calc_sensi(
                 print("after saving K")
             
             # Save sensi as netcdf with appropriate coordinate variables
-            sensi = xr.DataArray(
-                K,
-                coords=(
-                    base.time,
-                    base.lat,
-                    base.lon,
-                    np.arange(1, nelements+1)
-                ),
-                dims=["time", "lat", "lon", "element"],
-                name="Jacobian K",
-            )
-            print("created sensi xarray")
-            sensi = sensi.to_dataset()
-            sensi.to_netcdf(
-                f"{sensi_save_pth}/sensi_{m}_{p}.nc",
-                encoding={v: {"zlib": True, "complevel": 9} for v in sensi.data_vars},
-            )
+            # sensi = xr.DataArray(
+            #     K,
+            #     coords=(
+            #         base.time,
+            #         base.lat,
+            #         base.lon,
+            #         np.arange(1, nelements+1)
+            #     ),
+            #     dims=["time", "lat", "lon", "element"],
+            #     name="JacobianK",
+            # )
+            # print("created sensi xarray")
+            # sensi = sensi.to_dataset()
+            # print("converted to dataset")
+            encoding_dict = {}
+            for var in base_data.data_vars:
+                encoding_dict[var] = {"zlib": True, "complevel": 1}
+            print(encoding_dict)
+            with xr.set_options(keep_attrs=True):
+                base_data.to_netcdf(
+                    f"{sensi_save_pth}/sensi_{m}_{p}.nc",
+                    format='NETCDF4',
+                    encoding=encoding_dict,
+                )
             print("converted to nc")
 
 
@@ -218,8 +220,8 @@ if __name__ == "__main__":
 
     nelements = 3753
     perturbation = 1.5
-    startday = "20180601"
-    endday = "20180701"
+    startday = "20190101"
+    endday = "20190201"
     run_dirs_pth = "/n/holylfs05/LABS/jacob_lab/Users/jeast/proj/globalinv/prod/output"
     run_name = None
     sensi_save_pth = "/n/holyscratch01/jacob_lab/mhe/calc_sensi_test"
