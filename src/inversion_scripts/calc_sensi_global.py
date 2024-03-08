@@ -37,8 +37,8 @@ def test_GC_output_for_BC_perturbations(e, nelements, sensitivities):
         check = np.mean(sensitivities[:,:,0:3])
     assert abs(check - 1e-9) < 1e-11, f"GC CH4 perturb not working... perturbation is off by {abs(check - 1e-9)} mol/mol/ppb"
 
-def perturbation_months(current_month):
-    pert_months = []
+def observation_months(current_month):
+    obs_months = []
     
     month1 = datetime.datetime.strptime(current_month, "%Y%m%d")
 
@@ -48,9 +48,9 @@ def perturbation_months(current_month):
     month2 = month1 + datetime.timedelta(days=last_day)
     month3 = month2 + datetime.timedelta(days=calendar.monthrange(month2.year, month2.month)[1])
 
-    pert_months = [month1.strftime("%Y%m%d"), month2.strftime("%Y%m%d"), month3.strftime("%Y%m%d")]
+    obs_months = [month1.strftime("%Y%m%d"), month2.strftime("%Y%m%d"), month3.strftime("%Y%m%d")]
 
-    return pert_months
+    return obs_months
 
 def calc_sensi(
         nelements, perturbation, startday, endday, run_dirs_pth, run_name, sensi_save_pth, perturbationBC, perturbationOH
@@ -104,18 +104,18 @@ def calc_sensi(
     # subtract by 1 because here we assume .5 is a +50% perturbation
     perturbation = perturbation - 1
 
-    # Make date range (of months)
-    months = []
+    # Make date range for month with perturbation
+    pert_months = []
     dt = datetime.datetime.strptime(startday, "%Y%m%d")
     dt_max = datetime.datetime.strptime(endday, "%Y%m%d")
     dt = dt.replace(day=1)
     while dt < dt_max:
         dt_str = dt.strftime("%Y%m%d")
-        months.append(dt_str)
+        pert_months.append(dt_str)
         # Move to the first day of the next month
         _, days_in_month = calendar.monthrange(dt.year, dt.month)
         dt = (dt + datetime.timedelta(days=days_in_month)).replace(day=1)
-    print(f"months: {months}")
+    print(f"months: {pert_months}")
 
     # Loop over model data to get sensitivities
     # hours = range(24)
@@ -123,15 +123,15 @@ def calc_sensi(
 
     # TRY THIS
     def process(m):
-        print(f"month: {m}")
-        pert_months = perturbation_months(m)
-        print(pert_months)
+        print(f"perturbation month: {pert_months}")
+        obs_months = observation_months(m)
+        print(f"observation months {obs_months} for pert month {m}")
 
-        def process_p(p):
-            print(f"p: {p}")
-            # Load the base run XCH4 file for each perturbation month
+        def process_obs(o):
+            print(f"o: {o}")
+            # Load the base run XCH4 file for each observation month
             base_data = xr.open_dataset(
-                f"{run_dirs_pth}/imi_{m}/inversion/data_converted_nc/out_imi_{m}_{p}_000000.nc",
+                f"{run_dirs_pth}/imi_{m}/inversion/data_converted_nc/out_imi_{m}_{o}_000000.nc",
                 chunks='auto'
             )
             
@@ -153,7 +153,7 @@ def calc_sensi(
                 elem = zero_pad_num(e + 1)
                 # Load the month 1 XCH4 perturbation file for the current element
                 pert_data = xr.open_dataset(
-                    f"{run_dirs_pth}/imi_{m}/inversion/data_converted_nc/out_imi_{m}_{p}_00{elem}.nc",
+                    f"{run_dirs_pth}/imi_{m}/inversion/data_converted_nc/out_imi_{m}_{o}_00{elem}.nc",
                     chunks='auto'
                 )
                 pert = pert_data["geoschem_methane"]
@@ -195,15 +195,15 @@ def calc_sensi(
             print(encoding_dict)
             with xr.set_options(keep_attrs=True):
                 base_data.to_netcdf(
-                    f"{sensi_save_pth}/sensi_{m}_{p}.nc",
+                    f"{sensi_save_pth}/sensi_{m}_{o}.nc",
                     format='NETCDF4',
                     encoding=encoding_dict,
                 )
             print("converted to nc")
 
-        results_p = Parallel(n_jobs=-1)(delayed(process_p)(p) for p in pert_months)
+        Parallel(n_jobs=-1)(delayed(process_obs)(o) for o in obs_months)
 
-    results = Parallel(n_jobs=-1)(delayed(process)(m) for m in months)
+    results = Parallel(n_jobs=-1)(delayed(process)(m) for m in pert_months)
     print(f"Saved GEOS-Chem sensitivity files to {sensi_save_pth}")
 
 
