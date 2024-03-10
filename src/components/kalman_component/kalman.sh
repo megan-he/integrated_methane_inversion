@@ -8,7 +8,7 @@
 # Usage:
 #   setup_kf
 setup_kf() {
-    StateVectorFile="${RunDirs}/StateVector.nc"
+    StateVectorFile="${RunDirs}/NativeStateVector.nc"
 
     # Create a parent directory for the Kalman filter inversions
     # Include a link to the state vector file for use with run_inversion.sh
