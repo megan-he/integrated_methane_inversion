@@ -123,21 +123,26 @@ def do_inversion(
 
     # For each timestep, take the non-NaN sensitvity values
     timesteps = dat["K"].coords['time']
-    for t in range(1): # change to len(timesteps) later
-        K_all = dat["K"].values[t,:,:]
-        non_nans = np.where(~np.isnan(K_all))
-        K = 1e9 * K_all[non_nans]
 
-        # Grab the TROPOMI/GEOS-Chem data
+    for t in range(1): # change to len(timesteps) later
         GC_all = dat["geoschem_methane"].values[t,:,:]
-        GC = GC_all[non_nans[:-1]]
+        non_nans = np.where(~np.isnan(GC_all))
+        GC = GC_all[non_nans]
+        print(GC.shape)
+        print(GC.min(), GC.mean(), GC.max())
+
+        K_all = dat["K"][0,:,:,:].values
+        K = 1e9 * K_all[non_nans]
+        print(K.shape)
 
         tropomi_all = dat["tropomi_methane"].values[t,:,:]
-        tropomi = tropomi_all[non_nans[:-1]]
+        tropomi = tropomi_all[non_nans]
+        print(tropomi.shape)
 
         # Grab the observation counts
         obs_count_all = dat["observation_count"].values[t,:,:]
-        obs_count = obs_count_all[non_nans[:-1]]
+        obs_count = obs_count_all[non_nans]
+        print(obs_count.shape)
 
 
         # weight obs_err based on the observation count to prevent overfitting
@@ -180,17 +185,18 @@ def do_inversion(
         # Measurement-model mismatch: TROPOMI columns minus GEOS-Chem virtual TROPOMI columns
         # This is (y - F(xA)), i.e., (y - (K*xA + c)) or (y - K*xA) in shorthand
         delta_y = tropomi - GC  # [ppb]
-        print(len(delta_y))
+        print(f"delta y shape: {delta_y.shape}")
 
         # Define KTinvSo = K^T * inv(S_o)
         KT = K.transpose()
-        print(KT.shape)
+        print(f"K T shape: {KT.shape}")
         KTinvSo = np.zeros(KT.shape, dtype=float)
         for k in range(KT.shape[1]):
             KTinvSo[:, k] = KT[:, k] / obs_error[k]
 
         # Parts of inversion equation
         partial_KTinvSoK = KTinvSo @ K  # expression 1: K^T * inv(S_o) * K
+        print(partial_KTinvSoK.shape)
         partial_KTinvSoyKxA = (
             KTinvSo @ delta_y
         )  # expression 2: K^T * inv(S_o) * (y-K*xA)
