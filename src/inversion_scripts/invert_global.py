@@ -124,25 +124,20 @@ def do_inversion(
     # For each timestep, take the non-NaN sensitvity values
     timesteps = dat["K"].coords['time']
 
-    for t in range(1): # change to len(timesteps) later
+    for t in range(len(timesteps)):
         GC_all = dat["geoschem_methane"].values[t,:,:]
         non_nans = np.where(~np.isnan(GC_all))
         GC = GC_all[non_nans]
-        print(GC.shape)
-        print(GC.min(), GC.mean(), GC.max())
 
-        K_all = dat["K"][0,:,:,:].values
+        K_all = dat["K"][t,:,:,:].values
         K = 1e9 * K_all[non_nans]
-        print(K.shape)
 
         tropomi_all = dat["tropomi_methane"].values[t,:,:]
         tropomi = tropomi_all[non_nans]
-        print(tropomi.shape)
 
         # Grab the observation counts
         obs_count_all = dat["observation_count"].values[t,:,:]
         obs_count = obs_count_all[non_nans]
-        print(obs_count.shape)
 
 
         # weight obs_err based on the observation count to prevent overfitting
