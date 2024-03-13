@@ -118,10 +118,8 @@ def calc_sensi(
     print(f"months: {pert_months}")
 
     # Loop over model data to get sensitivities
-    # hours = range(24)
     elements = range(nelements) # 0 to 3752
 
-    # TRY THIS
     def process(m):
         print(f"perturbation month: {pert_months}")
         obs_months = observation_months(m)
@@ -131,8 +129,7 @@ def calc_sensi(
             print(f"o: {o}")
             # Load the base run XCH4 file for each observation month
             base_data = xr.open_dataset(
-                f"{run_dirs_pth}/imi_{m}/inversion/data_converted_nc/out_imi_{m}_{o}_000000.nc",
-                chunks='auto'
+                f"{run_dirs_pth}/imi_{m}/inversion/data_converted_nc/out_imi_{m}_{o}_000000.nc"
             )
             
             # Count nlat, nlon, timestep
@@ -148,17 +145,14 @@ def calc_sensi(
             # pert_datas = []
             # For each state vector element
             for e in elements:
-                print(f"iteration number {e}")
                 # State vector elements are numbered 1..nelements
                 elem = zero_pad_num(e + 1)
                 # Load the month 1 XCH4 perturbation file for the current element
                 pert_data = xr.open_dataset(
-                    f"{run_dirs_pth}/imi_{m}/inversion/data_converted_nc/out_imi_{m}_{o}_00{elem}.nc",
-                    chunks='auto'
+                    f"{run_dirs_pth}/imi_{m}/inversion/data_converted_nc/out_imi_{m}_{o}_00{elem}.nc"
                 )
                 pert = pert_data["geoschem_methane"]
                 pert_data.close()
-                # pert_datas.append(pert_data)
 
                 # Compute and store the sensitivities
                 # if ((perturbationOH > 0.0) and (e >= nelements-1)):
@@ -170,25 +164,9 @@ def calc_sensi(
                 #         #     test_GC_output_for_BC_perturbations(e, nelements, sensitivities)
                 if (perturbation > 0.0):
                     sensitivities = (pert.values - base.values) / perturbation
-                print("before saving K")
                 K[:, :, :, e] = sensitivities
-                print("after saving K")
             
-            # Save sensi as netcdf with appropriate coordinate variables
-            # sensi = xr.DataArray(
-            #     K,
-            #     coords=(
-            #         base.time,
-            #         base.lat,
-            #         base.lon,
-            #         np.arange(1, nelements+1)
-            #     ),
-            #     dims=["time", "lat", "lon", "element"],
-            #     name="JacobianK",
-            # )
-            # print("created sensi xarray")
-            # sensi = sensi.to_dataset()
-            # print("converted to dataset")
+            # Save sensi as netcdf
             encoding_dict = {}
             for var in base_data.data_vars:
                 encoding_dict[var] = {"zlib": True, "complevel": 1}
@@ -222,8 +200,8 @@ if __name__ == "__main__":
 
     nelements = 3753
     perturbation = 1.5
-    startday = "20190201"
-    endday = "20190301"
+    startday = "20190601"
+    endday = "20190701"
     run_dirs_pth = "/n/holylfs05/LABS/jacob_lab/Users/jeast/proj/globalinv/prod/output"
     run_name = None
     sensi_save_pth = "/n/holyscratch01/jacob_lab/mhe/calc_sensi_test"
