@@ -180,18 +180,15 @@ def do_inversion(
         # Measurement-model mismatch: TROPOMI columns minus GEOS-Chem virtual TROPOMI columns
         # This is (y - F(xA)), i.e., (y - (K*xA + c)) or (y - K*xA) in shorthand
         delta_y = tropomi - GC  # [ppb]
-        print(f"delta y shape: {delta_y.shape}")
 
         # Define KTinvSo = K^T * inv(S_o)
         KT = K.transpose()
-        print(f"K T shape: {KT.shape}")
         KTinvSo = np.zeros(KT.shape, dtype=float)
         for k in range(KT.shape[1]):
             KTinvSo[:, k] = KT[:, k] / obs_error[k]
 
         # Parts of inversion equation
         partial_KTinvSoK = KTinvSo @ K  # expression 1: K^T * inv(S_o) * K
-        print(partial_KTinvSoK.shape)
         partial_KTinvSoyKxA = (
             KTinvSo @ delta_y
         )  # expression 2: K^T * inv(S_o) * (y-K*xA)
@@ -304,20 +301,20 @@ if __name__ == "__main__":
     A = out[5]
 
     # Save results
-    # dataset = Dataset(output_path, "w", format="NETCDF4_CLASSIC")
-    # nvar = dataset.createDimension("nvar", n_elements + 1)
-    # nc_KTinvSoK = dataset.createVariable("KTinvSoK", np.float32, ("nvar", "nvar"))
-    # nc_KTinvSoyKxA = dataset.createVariable("KTinvSoyKxA", np.float32, ("nvar"))
-    # nc_ratio = dataset.createVariable("ratio", np.float32, ("nvar"))
-    # nc_xhat = dataset.createVariable("xhat", np.float32, ("nvar"))
-    # nc_S_post = dataset.createVariable("S_post", np.float32, ("nvar", "nvar"))
-    # nc_A = dataset.createVariable("A", np.float32, ("nvar", "nvar"))
-    # nc_KTinvSoK[:, :] = KTinvSoK
-    # nc_KTinvSoyKxA[:] = KTinvSoyKxA
-    # nc_ratio[:] = ratio
-    # nc_xhat[:] = xhat
-    # nc_S_post[:, :] = S_post
-    # nc_A[:, :] = A
-    # dataset.close()
+    dataset = Dataset(output_path, "w", format="NETCDF4_CLASSIC")
+    nvar = dataset.createDimension("nvar", n_elements)
+    nc_KTinvSoK = dataset.createVariable("KTinvSoK", np.float32, ("nvar", "nvar"))
+    nc_KTinvSoyKxA = dataset.createVariable("KTinvSoyKxA", np.float32, ("nvar"))
+    nc_ratio = dataset.createVariable("ratio", np.float32, ("nvar"))
+    nc_xhat = dataset.createVariable("xhat", np.float32, ("nvar"))
+    nc_S_post = dataset.createVariable("S_post", np.float32, ("nvar", "nvar"))
+    nc_A = dataset.createVariable("A", np.float32, ("nvar", "nvar"))
+    nc_KTinvSoK[:, :] = KTinvSoK
+    nc_KTinvSoyKxA[:] = KTinvSoyKxA
+    nc_ratio[:] = ratio
+    nc_xhat[:] = xhat
+    nc_S_post[:, :] = S_post
+    nc_A[:, :] = A
+    dataset.close()
 
-    # print(f"Saved results to {output_path}")
+    print(f"Saved results to {output_path}")
