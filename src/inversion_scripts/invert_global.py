@@ -130,7 +130,7 @@ def do_inversion(
         GC = GC_all[non_nans]
 
         K_all = dat["K"][t,:,:,:].values
-        K = 1e9 * K_all[non_nans]
+        K = K_all[non_nans]
 
         tropomi_all = dat["tropomi_methane"].values[t,:,:]
         tropomi = tropomi_all[non_nans]
@@ -258,7 +258,7 @@ if __name__ == "__main__":
 
     n_elements = 3753
     jacobian_dir = "/n/holyscratch01/jacob_lab/mhe/calc_sensi_test"
-    output_path = "/n/holyscratch01/jacob_lab/mhe/jacobian_test"
+    output_path = "/n/holyscratch01/jacob_lab/mhe/jacobian_test/inversion_result.nc"
     lon_min = -180
     lon_max = 180
     lat_min = -90
