@@ -8,8 +8,9 @@
 # Usage:
 #   create_statevector
 create_statevector() {
+    # printf "\n=== USING NATIVE STATE VECTOR ===\n"
     printf "\n=== CREATING RECTANGULAR STATE VECTOR FILE ===\n"
-    
+
     # Use GEOS-FP or MERRA-2 CN file to determine ocean/land grid boxes
     if "$isRegional"; then
         LandCoverFile="${DataPath}/GEOS_${gridDir}/${metDir}/${constYr}/01/${Met}.${constYr}0101.CN.${gridFile}.${RegionID}.${LandCoverFileExtension}"
@@ -17,7 +18,7 @@ create_statevector() {
         LandCoverFile="${DataPath}/GEOS_${gridDir}/${metDir}/${constYr}/01/${Met}.${constYr}0101.CN.${gridFile}.${LandCoverFileExtension}"
     fi
     HemcoDiagFile="${DataPath}/HEMCO/CH4/v2023-04/HEMCO_SA_Output/HEMCO_sa_diagnostics.${gridFile}.20190101.nc"
-	
+
     if "$isAWS"; then
         # Download land cover and HEMCO diagnostics files
         s3_lc_path="s3://gcgrid/GEOS_${gridDir}/${metDir}/${constYr}/01/${Met}.${constYr}0101.CN.${gridFile}.${RegionID}.${LandCoverFileExtension}"
@@ -27,7 +28,7 @@ create_statevector() {
     fi
 
     # Output path and filename for state vector file
-    StateVectorFName="StateVector.nc"
+    StateVectorFName="NativeStateVector.nc"
 
     # Create state vector file
     cd ${RunDirs}
@@ -110,6 +111,6 @@ reduce_dimension() {
     if "$OptimizeOH";then
 	nElements=$((nElements+1))
     fi
-    printf "\nNumber of state vector elements in this inversion = ${nElements}\n\n"
+    printf "\nNumber of reduced state vector elements in this inversion = ${nElements}\n\n"
     printf "\n=== DONE REDUCING DIMENSION OF STATE VECTOR FILE ===\n"
 }
