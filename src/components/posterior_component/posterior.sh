@@ -120,9 +120,9 @@ run_posterior() {
 
     if "$OptimizeOH"; then
         if "$KalmanMode"; then
-            inv_result_path="${RunDirs}/kf_inversions/period${period_i}/inversion_result_OH.nc"
+            inv_result_path="${RunDirs}/kf_inversions/period${period_i}/inversion_result.nc"
         else
-            inv_result_path="${RunDirs}/inversion/inversion_result_OH.nc"
+            inv_result_path="${RunDirs}/inversion/inversion_result.nc"
         fi
         # set OH optimal delta values
         PerturbOHValue=$(generate_optimized_OH_value $inv_result_path)
@@ -202,7 +202,7 @@ run_posterior() {
 # Usage:
 #   generate_optimized_BC_values <path-to-inversion-result> <bc-pert-value>
 generate_optimized_BC_values() {
-    if $OptimizeOH
+    if $OptimizeOH; then
        python -c "import sys; import xarray;\
        xhat = xarray.open_dataset(sys.argv[1])['xhat'].values[-5:];\
        print(xhat.tolist())" $1

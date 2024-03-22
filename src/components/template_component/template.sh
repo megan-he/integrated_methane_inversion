@@ -26,8 +26,6 @@ setup_template() {
     fi
 
     # Commands to feed to createRunDir.sh
-    # Run directories are created for the global domain by default. If needed,
-    # the regional domain specified in config.yml will be adjusted for below.
     if [[ "$Met" == "MERRA2" || "$Met" == "MERRA-2" || "$Met" == "merra2" ]]; then
 	metNum="1"
     elif [[ "$Met" == "GEOSFP" || "$Met" == "GEOS-FP" || "$Met" == "geosfp" ]]; then
@@ -42,9 +40,19 @@ setup_template() {
     elif [ "$Res" == "2.0x2.5" ]; then
 	cmd="3\n${metNum}\n2\n2\n${RunDirs}\n${runDir}\nn\n"
     elif [ "$Res" == "0.5x0.625" ]; then
-	cmd="3\n${metNum}\n3\n1\n2\n${RunDirs}\n${runDir}\nn\n"
+	if "$isRegional"; then
+	    # Use NA domain by default and adjust lat/lon below
+	    cmd="3\n${metNum}\n3\n4\n2\n${RunDirs}\n${runDir}\nn\n"
+	else
+	    cmd="3\n${metNum}\n3\n1\n2\n${RunDirs}\n${runDir}\nn\n"
+	fi
     elif [ "$Res" == "0.25x0.3125" ]; then
-	cmd="3\n${metNum}\n4\n1\n2\n${RunDirs}\n${runDir}\nn\n"
+	if "$isRegional"; then
+	    # Use NA domain by default and adjust lat/lon below
+	    cmd="3\n${metNum}\n4\n4\n2\n${RunDirs}\n${runDir}\nn\n"
+	else
+	    cmd="3\n${metNum}\n4\n1\n2\n${RunDirs}\n${runDir}\nn\n"
+	fi
     else
 	printf "\nERROR: Grid resolution ${Res} is not supported by the IMI. "
 	printf "\n Options are 0.25x0.3125, 0.5x0.625, 2.0x2.5, or 4.0x5.0.\n"
@@ -79,6 +87,9 @@ setup_template() {
     NEW="--> AnalyticalInv          :       true "
     sed -i "s/$OLD/$NEW/g" HEMCO_Config.rc
 
+    # Update time cycling flags to use most recent year
+    sed -i "s/RF xy/C xy/g" HEMCO_Config.rc
+    
     # Modify path to state vector file in HEMCO_Config.rc
     OLD=" StateVector.nc"
     NEW=" ${RunDirs}/StateVector.nc"

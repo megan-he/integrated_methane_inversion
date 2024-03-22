@@ -234,7 +234,7 @@ def do_inversion(
         scale_factor_idx -= 4
 
         # add prior error for BCs as the last 4 elements of the diagonal
-        if prior_err_bc > 0.0:
+        if prior_err_oh > 0.0:
             Sa_diag[-5:-1] = prior_err_bc**2
         else:
             Sa_diag[-4:] = prior_err_bc**2

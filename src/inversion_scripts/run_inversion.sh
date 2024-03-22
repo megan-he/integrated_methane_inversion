@@ -74,17 +74,17 @@ fi
 
 printf "Calling postproc_diags.py, FSS=$FirstSimSwitch\n"
 if "$FirstSimSwitch"; then
-   if [[ ! -d ${SpinupDir} ]]; then
-   printf "${SpinupDir} does not exist. Please fix SpinupDir or set FirstSimSwitch to False in run_inversion.sh.\n"
-   exit 1
-   fi
-   PrevDir=$SpinupDir
+    if [[ ! -d ${SpinupDir} ]]; then
+	printf "${SpinupDir} does not exist. Please fix SpinupDir or set FirstSimSwitch to False in run_inversion.sh.\n"
+	exit 1
+    fi
+    PrevDir=$SpinupDir
 else
-   PrevDir=$PosteriorRunDir
-   if [[ ! -d ${PosteriorRunDir} ]]; then
-   printf "${PosteriorRunDir} does not exist. Please fix PosteriorRunDir in run_inversion.sh.\n"
-   exit 1
-   fi
+    PrevDir=$PosteriorRunDir
+    if [[ ! -d ${PosteriorRunDir} ]]; then
+	printf "${PosteriorRunDir} does not exist. Please fix PosteriorRunDir in run_inversion.sh.\n"
+	exit 1
+    fi
 fi
 printf "  - Hour 0 for ${StartDate} will be obtained from ${PrevDir}\n"
 
@@ -105,23 +105,23 @@ printf "DONE -- postproc_diags.py\n\n"
 # Calculate GEOS-Chem sensitivities and save to sensitivities directory
 #=======================================================================
 
-# if ! "$PrecomputedJacobian"; then
-#     # add an argument to calc_sensi.py if optimizing BCs and/or OH
-#     if "$OptimizeBCs"; then
-#         pertBCs=$PerturbValueBCs
-#     else
-# 	pertBCs=0.0
-#     fi
-#     if "$OptimizeOH"; then
-#         pertOH=$PerturbValueOH
-#     else
-# 	pertOH=0.0
-#     fi
-#     python_args=(calc_sensi.py $nElements $PerturbValue $StartDate $EndDate $JacobianRunsDir $RunName $sensiCache $pertBCs $pertOH )
-#     printf "Calling calc_sensi.py\n"
-#     python "${python_args[@]}"; wait
-#     printf "DONE -- calc_sensi.py\n\n"
-# fi
+if ! "$PrecomputedJacobian"; then
+    # add an argument to calc_sensi.py if optimizing BCs and/or OH
+    if "$OptimizeBCs"; then
+        pertBCs=$PerturbValueBCs
+    else
+	pertBCs=0.0
+    fi
+    if "$OptimizeOH"; then
+        pertOH=$PerturbValueOH
+    else
+	pertOH=0.0
+    fi
+    python_args=(calc_sensi.py $nElements $PerturbValue $StartDate $EndDate $JacobianRunsDir $RunName $sensiCache $pertBCs $pertOH )
+    printf "Calling calc_sensi.py\n"
+    python "${python_args[@]}"; wait
+    printf "DONE -- calc_sensi.py\n\n"
+fi
 
 #=======================================================================
 # Setup GC data directory in workdir
@@ -137,13 +137,13 @@ printf "DONE -- postproc_diags.py\n\n"
 # Generate Jacobian matrix files 
 #=======================================================================
 
-# printf "Calling jacobian.py\n"
-# isPost="False"
-# if ! "$PrecomputedJacobian"; then
-#    buildJacobian="True"
-# else
-#    buildJacobian="False"
-# fi
+printf "Calling jacobian.py\n"
+isPost="False"
+if ! "$PrecomputedJacobian"; then
+   buildJacobian="True"
+else
+   buildJacobian="False"
+fi
 
 # python jacobian.py $StartDate $EndDate $LonMinInvDomain $LonMaxInvDomain $LatMinInvDomain $LatMaxInvDomain $nElements $tropomiCache $BlendedTROPOMI $isPost $buildJacobian; wait
 # printf " DONE -- jacobian.py\n\n"
@@ -179,7 +179,7 @@ if "$OptimizeOH"; then
 else
     ErrorOH=0.0
 fi
-python_args=(invert.py $nElements $JacobianDir $posteriorSF $LonMinInvDomain $LonMaxInvDomain $LatMinInvDomain $LatMaxInvDomain $PriorError $ObsError $Gamma $Res $jacobian_sf $ErrorBCs $ErrorOH)
+python_args=(invert.py $nElements $JacobianDir $posteriorSF $LonMinInvDomain $LonMaxInvDomain $LatMinInvDomain $LatMaxInvDomain $PriorError $ObsError $Gamma $Res $jacobian_sf $PerturbValueOH $ErrorBCs $ErrorOH)
 printf "Calling invert.py\n"
 python "${python_args[@]}"; wait
 printf "DONE -- invert.py\n\n"
