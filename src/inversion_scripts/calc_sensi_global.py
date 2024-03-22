@@ -200,8 +200,8 @@ if __name__ == "__main__":
 
     nelements = 3753
     perturbation = 1.5
-    startday = "20190601"
-    endday = "20190701"
+    startday = "20191101"
+    endday = "20200101"
     run_dirs_pth = "/n/holylfs05/LABS/jacob_lab/Users/jeast/proj/globalinv/prod/output"
     run_name = None
     sensi_save_pth = "/n/holyscratch01/jacob_lab/mhe/calc_sensi_test"
