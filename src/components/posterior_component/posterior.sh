@@ -174,11 +174,11 @@ run_posterior() {
     printf "\n=== DONE -- setup_gc_cache.py ===\n"
 
     # Sample GEOS-Chem atmosphere with TROPOMI
-    LonMinInvDomain=$(ncmin lon ${RunDirs}/StateVector.nc)
-    LonMaxInvDomain=$(ncmax lon ${RunDirs}/StateVector.nc)
-    LatMinInvDomain=$(ncmin lat ${RunDirs}/StateVector.nc)
-    LatMaxInvDomain=$(ncmax lat ${RunDirs}/StateVector.nc)
-    nElements=$(ncmax StateVector ${RunDirs}/StateVector.nc)
+    LonMinInvDomain=$(ncmin lon ${RunDirs}/NativeStateVector.nc)
+    LonMaxInvDomain=$(ncmax lon ${RunDirs}/NativeStateVector.nc)
+    LatMinInvDomain=$(ncmin lat ${RunDirs}/NativeStateVector.nc)
+    LatMaxInvDomain=$(ncmax lat ${RunDirs}/NativeStateVector.nc)
+    nElements=$(ncmax StateVector ${RunDirs}/NativeStateVector.nc)
     if "$OptimizeBCs"; then
 	nElements=$((nElements+4))
     fi
@@ -195,7 +195,7 @@ run_posterior() {
     posterior_end=$(date +%s)
 
     # convert vizualization notebooks to html
-    run_notebooks
+    # run_notebooks
 }
 
 # Description: Generates the updated NSEW perturbation to apply to domain edge BCs
