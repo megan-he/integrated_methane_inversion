@@ -42,7 +42,7 @@ SpinupDir="${OutputPath}/${RunName}/spinup_run"
 JacobianRunsDir="${OutputPath}/${RunName}/jacobian_runs"
 PriorRunDir="${JacobianRunsDir}/${RunName}_0000"
 PosteriorRunDir="${OutputPath}/${RunName}/posterior_run"
-StateVectorFile=../StateVector.nc
+StateVectorFile=../NativeStateVector.nc
 GCDir="./data_geoschem"
 JacobianDir="./data_converted"
 sensiCache="./data_sensitivities"
@@ -127,11 +127,11 @@ fi
 # Setup GC data directory in workdir
 #=======================================================================
 
-# GCsourcepth="${PriorRunDir}/OutputDir"
+GCsourcepth="${PriorRunDir}/OutputDir"
 
-# printf "Calling setup_gc_cache.py\n"
-# python setup_gc_cache.py $StartDate $EndDate $GCsourcepth $GCDir; wait
-# printf "DONE -- setup_gc_cache.py\n\n"
+printf "Calling setup_gc_cache.py\n"
+python setup_gc_cache.py $StartDate $EndDate $GCsourcepth $GCDir; wait
+printf "DONE -- setup_gc_cache.py\n\n"
 
 #=======================================================================
 # Generate Jacobian matrix files 
@@ -145,17 +145,17 @@ else
    buildJacobian="False"
 fi
 
-# python jacobian.py $StartDate $EndDate $LonMinInvDomain $LonMaxInvDomain $LatMinInvDomain $LatMaxInvDomain $nElements $tropomiCache $BlendedTROPOMI $isPost $buildJacobian; wait
-# printf " DONE -- jacobian.py\n\n"
+python jacobian.py $StartDate $EndDate $LonMinInvDomain $LonMaxInvDomain $LatMinInvDomain $LatMaxInvDomain $nElements $tropomiCache $BlendedTROPOMI $isPost $buildJacobian; wait
+printf " DONE -- jacobian.py\n\n"
 
 # remove all sensitivity netCDF files in the data_sensitivities folder after constructing the Jacobian to save storage
-# if [ "$(ls -A $JacobianDir)" ]; then
-#    # cd $sensiCache
-#    printf "TEST: Removing sensitivities files\n\n"
-#    # find . -type f -delete
-#    printf " DONE removing sensitivities files\n\n"
-#    # cd ..
-# fi
+if [ "$(ls -A $JacobianDir)" ]; then
+   # cd $sensiCache
+   printf "TEST: Removing sensitivities files\n\n"
+   # find . -type f -delete
+   printf " DONE removing sensitivities files\n\n"
+   # cd ..
+fi
 
 #=======================================================================
 # Do inversion
@@ -187,10 +187,10 @@ printf "DONE -- invert.py\n\n"
 # =======================================================================
 # Create gridded posterior scaling factor netcdf file
 # =======================================================================
-# GriddedPosterior="./gridded_posterior.nc"
+GriddedPosterior="./gridded_posterior.nc"
 
-# printf "Calling make_gridded_posterior.py\n"
-# python make_gridded_posterior.py $posteriorSF $StateVectorFile $GriddedPosterior; wait
-# printf "DONE -- make_gridded_posterior.py\n\n"
+printf "Calling make_gridded_posterior.py\n"
+python make_gridded_posterior.py $posteriorSF $StateVectorFile $GriddedPosterior; wait
+printf "DONE -- make_gridded_posterior.py\n\n"
 
 exit 0
