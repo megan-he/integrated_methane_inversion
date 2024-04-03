@@ -148,15 +148,6 @@ fi
 python jacobian.py $StartDate $EndDate $LonMinInvDomain $LonMaxInvDomain $LatMinInvDomain $LatMaxInvDomain $nElements $tropomiCache $BlendedTROPOMI $isPost $buildJacobian; wait
 printf " DONE -- jacobian.py\n\n"
 
-# remove all sensitivity netCDF files in the data_sensitivities folder after constructing the Jacobian to save storage
-if [ "$(ls -A $JacobianDir)" ]; then
-   # cd $sensiCache
-   printf "TEST: Removing sensitivities files\n\n"
-   # find . -type f -delete
-   printf " DONE removing sensitivities files\n\n"
-   # cd ..
-fi
-
 #=======================================================================
 # Do inversion
 #=======================================================================
