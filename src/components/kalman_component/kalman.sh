@@ -8,7 +8,7 @@
 # Usage:
 #   setup_kf
 setup_kf() {
-    StateVectorFile="${RunDirs}/NativeStateVector.nc"
+    StateVectorFile="${RunDirs}/StateVector.nc"
 
     # Create a parent directory for the Kalman filter inversions
     # Include a link to the state vector file for use with run_inversion.sh
@@ -94,6 +94,7 @@ run_period() {
     ithLine=$(sed "$((period_i+1))q;d" $PeriodsFile)
     ithDates=(${ithLine//,/ })
     StartDate_i=${ithDates[0]}
+    export StartDate_i # share variable with run_inversion.sh
     EndDate_i=${ithDates[1]}
     echo "Start, End: $StartDate_i, $EndDate_i"
 
@@ -139,20 +140,22 @@ run_period() {
     echo "Made a copy of the final posterior SpeciesConc and LevelEdgeDiags files"
 
     # Make link to restart file from posterior run directory in each Jacobian run directory
-    for ((x=0;x<=nElements;x++)); do
-        # Add zeros to string name
-        if [ $x -lt 10 ]; then
-            xstr="000${x}"
-        elif [ $x -lt 100 ]; then
-            xstr="00${x}"
-        elif [ $x -lt 1000 ]; then
-            xstr="0${x}"
-        else
-            xstr="${x}"
-        fi
-        ln -sf ${PosteriorRunDir}/Restarts/GEOSChem.Restart.${EndDate_i}_0000z.nc4 ${JacobianRunsDir}/${RunName}_${xstr}/Restarts/.
-    done
-    echo "Copied posterior restart to $((x-1)) Jacobian run directories for next iteration"
+    # for ((x=0;x<=nElements;x++)); do
+    #     # Add zeros to string name
+    #     if [ $x -lt 10 ]; then
+    #         xstr="000${x}"
+    #     elif [ $x -lt 100 ]; then
+    #         xstr="00${x}"
+    #     elif [ $x -lt 1000 ]; then
+    #         xstr="0${x}"
+    #     else
+    #         xstr="${x}"
+    #     fi
+    #     ln -sf ${PosteriorRunDir}/Restarts/GEOSChem.Restart.${EndDate_i}_0000z.nc4 ${JacobianRunsDir}/${RunName}_${xstr}/Restarts/.
+    # done
+    ln -sf ${PosteriorRunDir}/Restarts/GEOSChem.Restart.${EndDate_i}_0000z.nc4 ${JacobianRunsDir}/${RunName}_0000/Restarts/.
+    echo "Copied posterior restart to Jacobian run directory 0000 for next iteration"
+    # echo "Copied posterior restart to $((x-1)) Jacobian run directories for next iteration"
 
     cd ${InversionPath}
 
