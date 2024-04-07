@@ -28,7 +28,7 @@ create_statevector() {
     fi
 
     # Output path and filename for state vector file
-    StateVectorFName="NativeStateVector.nc"
+    StateVectorFName="StateVector.nc"
 
     # Create state vector file
     cd ${RunDirs}
@@ -61,13 +61,13 @@ reduce_dimension() {
     # set input variables
     config_path=${InversionPath}/${ConfigFile}
     state_vector_path=${RunDirs}/StateVector.nc
-    native_state_vector_path=${RunDirs}/NativeStateVector.nc
+    native_state_vector_path=${RunDirs}/StateVector.nc
 
     preview_dir=${RunDirs}/preview_run
     tropomi_cache=${RunDirs}/data_TROPOMI
     aggregation_file=${InversionPath}/src/components/statevector_component/aggregation.py
 
-    if [[ ! -f ${RunDirs}/NativeStateVector.nc ]]; then
+    if [[ ! -f ${RunDirs}/StateVector.nc ]]; then
         # copy the original state vector file for subsequent statevector generations
         printf "\nCopying native state vector file to NativeStateVector.nc \n"
         cp $state_vector_path $native_state_vector_path
