@@ -291,7 +291,7 @@ if __name__ == "__main__":
     # prior_err_BC = 0.0
     # prior_err_OH = 0.0 # test no OH optimization
 
-    
+
 
     # Reformat Jacobian scale factor input
     if jacobian_sf == "None":
