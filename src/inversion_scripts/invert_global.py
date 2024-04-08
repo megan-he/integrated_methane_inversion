@@ -11,6 +11,7 @@ from utils import load_obj, calculate_superobservation_error
 def do_inversion(
     n_elements,
     jacobian_dir,
+    month,
     lon_min,
     lon_max,
     lat_min,
@@ -254,24 +255,43 @@ def do_inversion(
 
 
 if __name__ == "__main__":
-    # import sys
+    import sys
+    
+    n_elements = int(sys.argv[1])
+    jacobian_dir = sys.argv[2]
+    month = sys.argv[3]
+    output_path = sys.argv[4]
+    lon_min = float(sys.argv[5])
+    lon_max = float(sys.argv[6])
+    lat_min = float(sys.argv[7])
+    lat_max = float(sys.argv[8])
+    prior_err = float(sys.argv[9])
+    obs_err = float(sys.argv[10])
+    gamma = float(sys.argv[11])
+    res = sys.argv[12]
+    jacobian_sf = sys.argv[13]
+    perturb_oh = float(sys.argv[14])
+    prior_err_BC = float(sys.argv[15])
+    prior_err_OH = float(sys.argv[16])
 
-    n_elements = 3753
-    jacobian_dir = "/n/holyscratch01/jacob_lab/mhe/calc_sensi_test"
-    month = "20190901"
-    output_path = "/n/holyscratch01/jacob_lab/mhe/jacobian_test"
-    lon_min = -180
-    lon_max = 180
-    lat_min = -90
-    lat_max = 90
-    prior_err = 0.5
-    obs_err = 15
-    gamma = 0.3
-    res = "2.0x2.5"
-    jacobian_sf = None
-    perturb_oh = 1.2
-    prior_err_BC = 0.0
-    prior_err_OH = 0.0 # test no OH optimization
+    # n_elements = 3753
+    # jacobian_dir = "/n/holyscratch01/jacob_lab/mhe/calc_sensi_test"
+    # month = "20190901"
+    # output_path = "/n/holyscratch01/jacob_lab/mhe/jacobian_test"
+    # lon_min = -180
+    # lon_max = 180
+    # lat_min = -90
+    # lat_max = 90
+    # prior_err = 0.5
+    # obs_err = 15
+    # gamma = 0.3
+    # res = "2.0x2.5"
+    # jacobian_sf = None
+    # perturb_oh = 1.2
+    # prior_err_BC = 0.0
+    # prior_err_OH = 0.0 # test no OH optimization
+
+    
 
     # Reformat Jacobian scale factor input
     if jacobian_sf == "None":
@@ -281,6 +301,7 @@ if __name__ == "__main__":
     out = do_inversion(
         n_elements,
         jacobian_dir,
+        month,
         lon_min,
         lon_max,
         lat_min,
@@ -302,7 +323,7 @@ if __name__ == "__main__":
     A = out[5]
 
     # Save results
-    dataset = Dataset(f"{output_path}/inversion_result_{month}.nc", "w", format="NETCDF4_CLASSIC")
+    dataset = Dataset(output_path, "w", format="NETCDF4_CLASSIC")
     nvar = dataset.createDimension("nvar", n_elements)
     nc_KTinvSoK = dataset.createVariable("KTinvSoK", np.float32, ("nvar", "nvar"))
     nc_KTinvSoyKxA = dataset.createVariable("KTinvSoyKxA", np.float32, ("nvar"))

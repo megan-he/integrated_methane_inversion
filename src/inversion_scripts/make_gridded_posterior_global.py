@@ -90,11 +90,17 @@ def make_gridded_posterior(posterior_SF_path, state_vector_path, save_path):
 
 
 if __name__ == "__main__":
-    # import sys
+    import sys
 
-    month = "20190901"
-    posterior_SF_path = f"/n/holyscratch01/jacob_lab/mhe/jacobian_test/inversion_result_{month}.nc"
-    state_vector_path = "/n/holyscratch01/jacob_lab/mhe/Global_IMI_2019/NativeStateVector.nc"
-    save_path = f"/n/holyscratch01/jacob_lab/mhe/gridded_posteriors/gridded_posterior_{month}.nc"
+    posterior_SF_path = sys.argv[1]
+    state_vector_path = sys.argv[2]
+    save_path = sys.argv[3]
 
     make_gridded_posterior(posterior_SF_path, state_vector_path, save_path)
+
+    # month = "20190901"
+    # posterior_SF_path = f"/n/holyscratch01/jacob_lab/mhe/jacobian_test/inversion_result_{month}.nc"
+    # state_vector_path = "/n/holyscratch01/jacob_lab/mhe/Global_IMI_2019/StateVector.nc"
+    # save_path = f"/n/holyscratch01/jacob_lab/mhe/gridded_posteriors/gridded_posterior_{month}.nc"
+
+    # make_gridded_posterior(posterior_SF_path, state_vector_path, save_path)
