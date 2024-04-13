@@ -94,7 +94,7 @@ run_preview() {
 
     # Specify inputs for preview script
     config_path=${InversionPath}/${ConfigFile}
-    state_vector_path=${RunDirs}/NativeStateVector.nc # before clustering, should be NativeStateVector.nc
+    state_vector_path=${RunDirs}/StateVector.nc # before clustering, should be NativeStateVector.nc
     preview_dir=${RunDirs}/${runDir}
     tropomi_cache=${RunDirs}/data_TROPOMI
     preview_file=${InversionPath}/src/inversion_scripts/imi_preview.py
