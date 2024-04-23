@@ -247,6 +247,9 @@ def do_inversion(
 
     # Averaging kernel matrix
     A = np.identity(n_elements) - S_post @ inv_Sa
+
+    if jacobian_sf is not None:
+        print("Multiplied Jacobian SF")
     
     # Print some statistics
     print("Min:", xhat[:scale_factor_idx].min(), "Mean:", xhat[:scale_factor_idx].mean(), "Max", xhat[:scale_factor_idx].max())
