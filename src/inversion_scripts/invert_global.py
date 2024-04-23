@@ -248,6 +248,13 @@ def do_inversion(
     # Averaging kernel matrix
     A = np.identity(n_elements) - S_post @ inv_Sa
 
+    # Calculate J_A, where ratio = xhat - xA
+    # J_A = (xhat - xA)^T * inv_Sa * (xhat - xA)
+    ratioT = ratio.transpose()
+    print(f'gamma = {gamma}')
+    J_A = (ratioT @ inv_Sa @ ratio) / n_elements # normalized J_A
+    print(f'Normalized J_A = {J_A}') # adjust gamma so this is close to 1
+
     if jacobian_sf is not None:
         print("Multiplied Jacobian SF")
     
