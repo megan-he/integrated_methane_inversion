@@ -5,7 +5,7 @@ import numpy as np
 import xarray as xr
 
 
-def get_jacobian_scalefactors(period_number, inv_directory, ref_directory):
+def get_jacobian_scalefactors(period_number, start_date, inv_directory, ref_directory):
     """
     Running sensitivity inversions with pre-constructed Jacobian may require scaling the 
     Jacobian to match updated prior estimates. This is because the Jacobian is defined
@@ -27,9 +27,9 @@ def get_jacobian_scalefactors(period_number, inv_directory, ref_directory):
     sf_archive = os.path.join(inv_directory, "archive_sf")
     ref_archive = os.path.join(ref_directory, "archive_sf")
     sf_path = os.path.join(sf_archive, f"prior_sf_period{period_number}.nc")
-    sf_path_ref = os.path.join(ref_archive, f"prior_sf_period{period_number}.nc")
+    # sf_path_ref = os.path.join(ref_archive, f"prior_sf_period{period_number}.nc") # don't have SF ref, just prior emissions
     sf = xr.load_dataset(sf_path)["ScaleFactor"]
-    sf_ref = xr.load_dataset(sf_path_ref)["ScaleFactor"]
+    # sf_ref = xr.load_dataset(sf_path_ref)["ScaleFactor"]
 
     # Reset buffer area to 1?
     #   TODO Do we want this feature? See similar comment in prepare_sf.py
@@ -47,19 +47,19 @@ def get_jacobian_scalefactors(period_number, inv_directory, ref_directory):
     #  The HEMCO diags emissions are needed to calculate Jacobian scale
     #  factors for sensitivity inversions that change the prior inventory
     run_name = inv_directory.split("/")[-1]
-    ref_run_name = ref_directory.split("/")[-1]
+    ref_run_name = f"imi_{start_date}"
     prior_sim = os.path.join(
         inv_directory, "jacobian_runs", f"{run_name}_0000", "OutputDir"
     )
     ref_prior_sim = os.path.join(
-        ref_directory, "jacobian_runs", f"{ref_run_name}_0000", "OutputDir"
+        ref_directory, ref_run_name, "jacobian_runs", f"{ref_run_name}_000000", "OutputDir"
     )
     hemco_list = [f for f in os.listdir(prior_sim) if "HEMCO" in f]
     hemco_list.sort()
     ref_hemco_list = [f for f in os.listdir(ref_prior_sim) if "HEMCO" in f]
     ref_hemco_list.sort()
     pth = os.path.join(prior_sim, hemco_list[period_number - 1])
-    ref_pth = os.path.join(ref_prior_sim, ref_hemco_list[period_number - 1])
+    ref_pth = os.path.join(ref_prior_sim, ref_hemco_list[0])
     hemco_emis = xr.load_dataset(pth)["EmisCH4_Total"].isel(time=0, drop=True)
     ref_hemco_emis = xr.load_dataset(ref_pth)["EmisCH4_Total"].isel(time=0, drop=True)
 
@@ -71,7 +71,9 @@ def get_jacobian_scalefactors(period_number, inv_directory, ref_directory):
     #        the same in hemco_emis and ref_hemco_emis.... I think.
     #        Should we be summing emissions in each buffer element and then dividing
     #        the sums to get the appropriate scale factor?
-    sf_ratio = (sf * hemco_emis) / (sf_ref * ref_hemco_emis)
+    # sf_ratio = (sf * hemco_emis) / (sf_ref * ref_hemco_emis)
+    sf_ratio = sf * hemco_emis / ref_hemco_emis # is this correct?
+    sf_ratio = xr.where(np.isinf(sf_ratio), np.nan, sf_ratio)
     sf_K = []
     for e in range(1, n_elements + 1):
         # Get scale factor for state vector element e
@@ -87,11 +89,12 @@ if __name__ == "__main__":
     import sys
 
     period_number = int(sys.argv[1])
-    inv_directory = sys.argv[2]
-    ref_directory = sys.argv[3]
+    start_date = sys.argv[2]
+    inv_directory = sys.argv[3]
+    ref_directory = sys.argv[4]
 
     # Get the scale factors
-    out = get_jacobian_scalefactors(period_number, inv_directory, ref_directory)
+    out = get_jacobian_scalefactors(period_number, start_date, inv_directory, ref_directory)
 
     # Save them
     save_path_1 = os.path.join(
