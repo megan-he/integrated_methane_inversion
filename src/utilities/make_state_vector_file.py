@@ -142,8 +142,8 @@ def make_state_vector_file(
         hd["lon"] = hd["lon"] - 0.0625
 
     # Select / group fields together based on land and ice threshold, above threshold is set to NaN
-    lc = (lc["FRLAKE"] + lc["FRLAND"].where(lc["FRLAND"]>0.01,drop=True) + lc["FRLANDIC"].where(lc["FRLANDIC"] < 0.1,drop=True)).drop("time").squeeze()
-    # lc = (lc["FRLAKE"] + lc["FRLAND"] + lc["FRLANDIC"]).drop("time").squeeze()
+    # lc = (lc["FRLAKE"] + lc["FRLAND"].where(lc["FRLAND"]>0.01,drop=True) + lc["FRLANDIC"].where(lc["FRLANDIC"] < 0.1,drop=True)).drop("time").squeeze()
+    lc = (lc["FRLAKE"] + lc["FRLAND"] + lc["FRLANDIC"].where(lc["FRLANDIC"] < 0.1,drop=True)).drop("time").squeeze()
     hd = (hd["EmisCH4_Oil"] + hd["EmisCH4_Gas"]).drop("time").squeeze()
 
     # Check compatibility of region of interest
