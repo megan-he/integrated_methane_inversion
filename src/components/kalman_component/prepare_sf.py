@@ -98,7 +98,7 @@ def prepare_sf(config_path, period_number, base_directory, nudge_factor):
             nudged_posterior_roi = nudged_posterior_emis * mask
             nudged_posterior_buf = nudged_posterior_emis * abs(mask - 1)
             scaled_nudged_posterior_emis = (
-                nudged_posterior_buf + nudged_posterior_roi * lambda_scaler
+                nudged_posterior_buf + nudged_posterior_roi
             )
 
             # Get the final posterior scale factors
