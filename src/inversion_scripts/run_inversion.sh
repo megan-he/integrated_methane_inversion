@@ -46,7 +46,7 @@ LonMaxInvDomain=180
 LatMinInvDomain=-60
 LatMaxInvDomain=88
 nElements=3753
-OutputPath=/n/holylfs05/LABS/jacob_lab/Users/mhe
+OutputPath=/n/holylsf05/LABS/jacob_lab/Users/mhe
 Res=2.0x2.5
 SpinupDir="${OutputPath}/${RunName}/spinup_run"
 JacobianRunsDir="${OutputPath}/${RunName}/jacobian_runs"
@@ -180,18 +180,18 @@ if "$OptimizeOH"; then
 else
     ErrorOH=0.0
 fi
-python_args=(invert_global.py $nElements $JacobianDir $StartDate_i $posteriorSF $LonMinInvDomain $LonMaxInvDomain $LatMinInvDomain $LatMaxInvDomain $PriorError $ObsError $Gamma $Res $jacobian_sf $PerturbValueOH $ErrorBCs $ErrorOH)
-printf "Calling invert_global.py\n"
+python_args=(invert.py $nElements $JacobianDir $StartDate_i $posteriorSF $LonMinInvDomain $LonMaxInvDomain $LatMinInvDomain $LatMaxInvDomain $PriorError $ObsError $Gamma $Res $jacobian_sf $PerturbValueOH $ErrorBCs $ErrorOH)
+printf "Calling invert.py\n"
 python "${python_args[@]}"; wait
-printf "DONE -- invert_global.py\n\n"
+printf "DONE -- invert.py\n\n"
 
 # =======================================================================
 # Create gridded posterior scaling factor netcdf file
 # =======================================================================
 GriddedPosterior="./gridded_posterior.nc"
 
-printf "Calling make_gridded_posterior_global.py\n"
-python make_gridded_posterior_global.py $posteriorSF $StateVectorFile $GriddedPosterior; wait
-printf "DONE -- make_gridded_posterior_global.py\n\n"
+printf "Calling make_gridded_posterior.py\n"
+python make_gridded_posterior.py $posteriorSF $StateVectorFile $GriddedPosterior; wait
+printf "DONE -- make_gridded_posterior.py\n\n"
 
 exit 0
