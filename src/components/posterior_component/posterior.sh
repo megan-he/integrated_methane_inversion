@@ -37,17 +37,17 @@ setup_posterior() {
     ln -s ${RunTemplate}/gcclassic .
 
     # Link to restart file
-    RestartFileFromSpinup=${RunDirs}/spinup_run/Restarts/GEOSChem.Restart.${SpinupEnd}_0000z.nc4
-    if test -f "$RestartFileFromSpinup" || "$DoSpinup"; then
-        ln -s $RestartFileFromSpinup Restarts/GEOSChem.Restart.${StartDate}_0000z.nc4
-    else
-        RestartFile=${RestartFilePrefix}${StartDate}_0000z.nc4
-        ln -s $RestartFile Restarts/GEOSChem.Restart.${StartDate}_0000z.nc4
-        if "$UseBCsForRestart"; then
-            sed -i -e "s|SpeciesRst|SpeciesBC|g" HEMCO_Config.rc
-            printf "\nWARNING: Changing restart field entry in HEMCO_Config.rc to read the field from a boundary condition file. Please revert SpeciesBC_ back to SpeciesRst_ for subsequent runs.\n" 
-        fi
+    # RestartFileFromSpinup=${RunDirs}/spinup_run/Restarts/GEOSChem.Restart.${SpinupEnd}_0000z.nc4
+    # if test -f "$RestartFileFromSpinup" || "$DoSpinup"; then
+    #     ln -s $RestartFileFromSpinup Restarts/GEOSChem.Restart.${StartDate}_0000z.nc4
+    # else
+    RestartFile=${RestartFilePrefix}${StartDate}_0000z.nc4
+    ln -s $RestartFile Restarts/GEOSChem.Restart.${StartDate}_0000z.nc4
+    if "$UseBCsForRestart"; then
+        sed -i -e "s|SpeciesRst|SpeciesBC|g" HEMCO_Config.rc
+        printf "\nWARNING: Changing restart field entry in HEMCO_Config.rc to read the field from a boundary condition file. Please revert SpeciesBC_ back to SpeciesRst_ for subsequent runs.\n" 
     fi
+    # fi
     
     # Update settings in geoschem_config.yml
     sed -i "/analytical_inversion/{N;s/activate: true/activate: false/}" geoschem_config.yml
@@ -105,9 +105,9 @@ run_posterior() {
 
     if "$OptimizeBCs"; then
         if "$KalmanMode"; then
-            inv_result_path="${RunDirs}/kf_inversions/period${period_i}/inversion_result_OH.nc"
+            inv_result_path="${RunDirs}/kf_inversions/period${period_i}/inversion_result.nc"
         else
-            inv_result_path="${RunDirs}/inversion/inversion_result_OH.nc"
+            inv_result_path="${RunDirs}/inversion/inversion_result.nc"
         fi
         # set BC optimal delta values
         PerturbBCValues=$(generate_optimized_BC_values $inv_result_path)
@@ -130,6 +130,14 @@ run_posterior() {
         sed -i -e "s| OH_pert_factor  1.0| OH_pert_factor  ${PerturbOHValue}|g" HEMCO_Config.rc
         printf "\n=== OH OPTIMIZATION: OH optimized perturbation value set to: ${PerturbOHValue} ===\n"
     fi 
+
+    # Tell HEMCO to read SpeciesRst for subsequent periods
+    if "$KalmanMode"; then
+        if [[ $period_i -gt 1 ]]; then
+            sed -i -e "s|SpeciesBC|SpeciesRst|g" HEMCO_Config.rc
+            printf "Using SpeciesRst in HEMCO_Config.rc"
+        fi
+    fi
 
     # Submit job to job scheduler
     printf "\n=== SUBMITTING POSTERIOR SIMULATION ===\n"
@@ -174,11 +182,11 @@ run_posterior() {
     printf "\n=== DONE -- setup_gc_cache.py ===\n"
 
     # Sample GEOS-Chem atmosphere with TROPOMI
-    LonMinInvDomain=$(ncmin lon ${RunDirs}/NativeStateVector.nc)
-    LonMaxInvDomain=$(ncmax lon ${RunDirs}/NativeStateVector.nc)
-    LatMinInvDomain=$(ncmin lat ${RunDirs}/NativeStateVector.nc)
-    LatMaxInvDomain=$(ncmax lat ${RunDirs}/NativeStateVector.nc)
-    nElements=$(ncmax StateVector ${RunDirs}/NativeStateVector.nc)
+    LonMinInvDomain=$(ncmin lon ${RunDirs}/StateVector.nc)
+    LonMaxInvDomain=$(ncmax lon ${RunDirs}/StateVector.nc)
+    LatMinInvDomain=$(ncmin lat ${RunDirs}/StateVector.nc)
+    LatMaxInvDomain=$(ncmax lat ${RunDirs}/StateVector.nc)
+    nElements=$(ncmax StateVector ${RunDirs}/StateVector.nc)
     if "$OptimizeBCs"; then
 	nElements=$((nElements+4))
     fi
