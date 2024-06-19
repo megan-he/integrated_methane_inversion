@@ -19,20 +19,21 @@ Make the super observations and determine their associated error
 """
 
 inversionMonth = sys.argv[1]
+input_dir = "/n/holylfs05/LABS/jacob_lab/Users/mhe"
 gc_path = "/n/holylfs05/LABS/jacob_lab/Users/nbalasus/gc_global_sensitivities/gc_global/OutputDir"
-os.makedirs(f"inversion_{inversionMonth}")
+# os.makedirs(f"inversion_{inversionMonth}")
 
 if __name__ == "__main__":
 
     # Get relevant satellite observations
-    input_files = sorted(glob.glob(f"2019satellite_observations/input_{inversionMonth}*.nc"))
+    input_files = sorted(glob.glob(input_dir + f"/2019satellite_observations/input_{inversionMonth}*.nc"))
     times = []
     for file in input_files:
         times.append(re.search(r'input_(.*).nc',file).groups(0)[0])
 
     # Make a individual observations dataframe
     for idx,time in enumerate(times):
-        with xr.open_dataset(f"2019satellite_observations/input_{time}.nc") as input_file,\
+        with xr.open_dataset(input_dir + f"/2019satellite_observations/input_{time}.nc") as input_file,\
             xr.open_dataset(gc_path + f"/output_{time}.nc") as output_file:
 
             tmp_df = pd.DataFrame({"tropomi_gc_lat_grid_cell": input_file["gc_lat_grid_cell"].values,
@@ -95,7 +96,7 @@ if __name__ == "__main__":
     # Now make a dataframe where P is the number of retrievals used to make a given super observation
     # Columns are (P), (variance of errors across super observations with this many retrievals), and (number of super observations used in the variance calculation)
     df = pd.DataFrame(columns=["P","error_variance","number_of_super_observations_used_to_calculate_error_variance"])
-    P_values = np.sort(super_observations["count"].unique())
+    P_values = np.sort(super_observations["count"].unique()) # from 1 to 1153
     for idx,P in enumerate(P_values):
         df.loc[idx,"P"] = P
         subset_idx = super_observations.loc[super_observations["count"] == P].index
@@ -103,7 +104,16 @@ if __name__ == "__main__":
         df.loc[idx,"number_of_super_observations_used_to_calculate_error_variance"] = len(super_observations.loc[subset_idx])
 
     # Drop values where we don't have a lot of super observations
-    df_drop_low_density = df.loc[df["number_of_super_observations_used_to_calculate_error_variance"] > 1000].reset_index(drop=True)
+    df_drop_low_density = df.loc[df["number_of_super_observations_used_to_calculate_error_variance"] > 1].reset_index(drop=True)
+    
+    # Plot number of superobs that are used to get each P
+    fig = plt.figure()
+    ax = plt.gca()
+    ax.scatter(df_drop_low_density["P"], df_drop_low_density["number_of_super_observations_used_to_calculate_error_variance"])
+    ax.set_yscale('log')
+    ax.set_xlabel("P")
+    ax.set_ylabel("Number of superobservations used to calculate error variance")
+    fig.savefig("test.png")
 
     # Function for error variance
     def func(P, r_retrieval, sigma_retrieval, sigma_transport):
@@ -127,7 +137,7 @@ if __name__ == "__main__":
     ax.set_ylabel("Error variance [ppb$^2$]")
     ax.legend()
     ax.grid(linewidth=0.1)
-    fig.savefig(f"observational_error_{inversionMonth}.png", dpi=300, bbox_inches="tight")
+    fig.savefig(f"inversion_{inversionMonth}/observational_error_{inversionMonth}.png", dpi=300, bbox_inches="tight")
 
     # Define g(P) to scale sk
     def gP(P):
