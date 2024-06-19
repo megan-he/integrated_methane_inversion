@@ -178,7 +178,7 @@ if __name__ == "__main__":
             unique_hour_dt = pd.to_datetime(str(unique_hour)) # For handling the string conversion below
 
             # Save the netCDF file to your storage directory
-            ds.to_netcdf(storage_dir+f"satellite_observations/"
+            ds.to_netcdf(storage_dir+f"2019satellite_observations/"
                                     f"input_{unique_hour_dt.strftime('%Y%m%dT%H')}.nc")
 
         # Write the files using multiple cores
