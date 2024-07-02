@@ -110,6 +110,9 @@ def imi_preview(
 
     # Read config file
     config = yaml.load(open(config_path), Loader=yaml.FullLoader)
+    for key in config.keys():
+        if isinstance(config[key],str):
+            config[key] = os.path.expandvars(config[key])
 
     # Open the state vector file
     state_vector = xr.load_dataset(state_vector_path)
@@ -234,7 +237,7 @@ def imi_preview(
         vmax=14,
         lon_bounds=None,
         lat_bounds=None,
-        levels=None, # previously 21
+        levels=21,
         title="Prior emissions",
         point_sources=get_point_source_coordinates(config),
         cbar_label="Emissions (kg km$^{-2}$ h$^{-1}$)",
