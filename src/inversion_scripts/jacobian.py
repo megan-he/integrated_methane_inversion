@@ -186,5 +186,5 @@ if __name__ == "__main__":
             save_obj(viz_output, f"{vizdir}/{date}_GCtoTROPOMI.pkl")
         return 0
 
-    results = Parallel(n_jobs=-1)(delayed(process)(filename) for filename in sat_files if endday not in filename)
+    results = Parallel(n_jobs=-1)(delayed(process)(filename) for filename in sat_files)
     print(f"Wrote files to {outputdir}")
