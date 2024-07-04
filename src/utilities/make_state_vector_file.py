@@ -159,7 +159,7 @@ def make_state_vector_file(
     hd = xr.load_dataset(hemco_diag_pth)
 
     # Select / group fields together
-    lc = (lc["FRLAKE"] + lc["FRLAND"] + lc["FRLANDIC"]).drop_vars("time").squeeze()
+    lc = (lc["FRLAKE"] + lc["FRLAND"] + lc["FRLANDIC"].where(lc["FRLANDIC"] < 0.1,drop=True)).drop_vars("time").squeeze()
     hd = (hd["EmisCH4_Oil"] + hd["EmisCH4_Gas"]).drop_vars("time").squeeze()
 
     # Check compatibility of region of interest
