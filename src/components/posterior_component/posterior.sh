@@ -210,7 +210,7 @@ run_posterior() {
     posterior_end=$(date +%s)
 
     # convert vizualization notebooks to html
-    run_notebooks
+    # run_notebooks
 }
 
 # Description: Generates the updated NSEW perturbation to apply to domain edge BCs
