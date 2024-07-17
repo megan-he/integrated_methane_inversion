@@ -172,7 +172,7 @@ def plot_field(
             ax=ax,
             vmin=vmin,
             vmax=vmax,
-            cbar_kwargs={"label": cbar_label, "fraction": 0.041, "pad": 0.04},
+            cbar_kwargs={"label": cbar_label, "fraction": 0.03, "pad": 0.04},
         )
     elif plot_type == "imshow":
         field.plot.imshow(
