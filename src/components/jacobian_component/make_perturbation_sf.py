@@ -62,8 +62,6 @@ def update_jacobian_perturbation_files(jacobian_dir, state_vector_labels, flat_s
                     with open(perturbation_file, "w") as file:
                         file.writelines(lines)
 
-
-def calculate_sfs(state_vector, emis_prior, target_emission=1e-8, prior_sf=None):
 def calculate_sfs(state_vector, emis_prior, target_emission=1e-8, prior_sf=None):
     """
     Calculate the scale factors to perturb each state vector
