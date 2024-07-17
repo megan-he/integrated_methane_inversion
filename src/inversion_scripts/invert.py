@@ -143,19 +143,21 @@ def do_inversion(
         # "Satellite quantification of methane emissions and oil/gas methane
         # intensities from individual countries in the Middle East and North
         # Africa: implications for climate action"
-        s_superO_1 = calculate_superobservation_error(obs_err, 1)
-        s_superO_p = np.array(
-            [
-                calculate_superobservation_error(obs_err, p) if p >= 1 else s_superO_1
-                for p in obs_GC[:, 4]
-            ]
-        )
-        # Define observational errors (diagonal entries of S_o matrix)
-        obs_error = np.power(obs_err, 2)
-        gP = s_superO_p**2 / s_superO_1**2
-        # scale error variance by gP
-        obs_error = gP * obs_error
+        # s_superO_1 = calculate_superobservation_error(obs_err, 1)
+        # s_superO_p = np.array(
+        #     [
+        #         calculate_superobservation_error(obs_err, p) if p >= 1 else s_superO_1
+        #         for p in obs_GC[:, 4]
+        #     ]
+        # )
+        # # Define observational errors (diagonal entries of S_o matrix)
+        # obs_error = np.power(obs_err, 2)
+        # gP = s_superO_p**2 / s_superO_1**2
+        # # scale error variance by gP
+        # obs_error = gP * obs_error
 
+        # load global 2x2.5 spline fit obs error here
+        obs_error = np.load("/n/holylfs05/LABS/jacob_lab/Users/mhe/Global_IMI_2019/so_est.npy")
         # check to make sure obs_err isn't negative, set 1 as default value
         obs_error = [obs if obs > 0 else 1 for obs in obs_error]
 
