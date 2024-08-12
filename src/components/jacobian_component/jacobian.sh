@@ -112,7 +112,7 @@ create_simulation_dir() {
     ln -s ../../GEOSChem_build/gcclassic .
 
     # link to restart file
-    RestartFileFromSpinup=${RunDirs}/spinup_run/Restarts/GEOSChem.Restart.${SpinupEnd}_0000z.nc4
+    # RestartFileFromSpinup=${RunDirs}/spinup_run/Restarts/GEOSChem.Restart.${SpinupEnd}_0000z.nc4
     if test -f "$RestartFileFromSpinup" || "$DoSpinup"; then
         RestartFile=$RestartFileFromSpinup
     else
@@ -416,6 +416,16 @@ run_jacobian() {
         fi
         cd ${RunDirs}/jacobian_runs
         set +e
+
+        # If starting from BCs in kalman filter, switch back to Restart files for subsequent periods
+        if "$KalmanMode"; then
+            if [[ $jacobian_period -gt 1 ]]; then
+                printf "\nReverting restart field entry in HEMCO_Config.rc from SpeciesBC_ back to SpeciesRst_ for subsequent periods.\n"
+                for d in ${RunDirs}/jacobian_runs/*/; do
+                    sed -i -e "s|SpeciesBC|SpeciesRst|g" ${d}/HEMCO_Config.rc
+                done
+            fi
+        fi
 
         printf "\n=== SUBMITTING JACOBIAN SIMULATIONS ===\n"
         # Submit job to job scheduler
