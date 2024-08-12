@@ -84,7 +84,7 @@ run_inversion() {
     sbatch --mem 2000000 \
            -c 64 \
            -t "48:00:00" \
-           -p "bigmem,huce_bigmem" \
+           -p "huce_bigmem,bigmem,bigmem_intermediate" \
            -W run_inversion.sh $FirstSimSwitch; wait;
 
     # check if exited with non-zero exit code
