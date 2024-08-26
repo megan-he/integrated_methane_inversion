@@ -356,7 +356,8 @@ def filter_blended(blended_data, xlim, ylim, startdate, enddate, use_water_obs=F
               & (blended_data["time"] <= enddate)
               & (blended_data["longitude_bounds"].ptp(axis=2) < 100)
               & ~((blended_data["surface_classification"] == 3) | ((blended_data["surface_classification"] == 2) & (blended_data["chi_square_SWIR"][:] > 20000)))
-              & (blended_data["latitude"] > -60))
+              & (blended_data["latitude"] > -60)
+              & (blended_data["blended_albedo"] < 1))
     
     if use_water_obs:
         return np.where(valid_idx)
