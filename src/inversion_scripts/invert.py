@@ -159,7 +159,7 @@ def do_inversion(
         # obs_error = gP * obs_error
 
         # load global 2x2.5 spline fit obs error here
-        obs_error = np.load("/n/holylfs05/LABS/jacob_lab/Users/mhe/Global_IMI_2019/so_est.npy")
+        obs_error = np.load("/n/holylfs05/LABS/jacob_lab/Users/mhe/Global_IMI_2019_new/so_est_1400.npy")
         # check to make sure obs_err isn't negative, set 1 as default value
         obs_error = [obs if obs > 0 else 1 for obs in obs_error]
 
