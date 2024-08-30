@@ -143,10 +143,10 @@ run_posterior() {
 
         printf "\n=== OH OPTIMIZATION ===\n"
         if "$isRegional"; then
-	    # Apply single OH scale factor to entire region
-	    sed -i -e "s| OH_pert_factor  1.0| OH_pert_factor  ${PerturbOHValue}|g" HEMCO_Config.rc
-	    printf "OH optimized perturbation value set to: ${PerturbOHValue}\n"
-	else
+            # Apply single OH scale factor to entire region
+            sed -i -e "s| OH_pert_factor  1.0| OH_pert_factor  ${PerturbOHValue}|g" HEMCO_Config.rc
+            printf "OH optimized perturbation value set to: ${PerturbOHValue}\n"
+	    else
             # Apply hemispheric OH perturbation values using mask file
             oh_sfs=($PerturbOHValue)
             cp Perturbations.txt PerturbationsOH.txt
