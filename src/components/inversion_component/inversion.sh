@@ -80,11 +80,15 @@ run_inversion() {
         cd ${RunDirs}/inversion
     fi
 
+    # Set inversion memory, CPUs, and time
+    InvMem="${InversionMemory:-$RequestedMemory}"
+    InvCPU="${InversionCPUs:-$RequestedCPUs}"
+    InvTime="${InversionTime:-$RequestedTime}"
     # Execute inversion driver script
-    sbatch --mem 2000000 \
-           -c 64 \
-           -t "48:00:00" \
-           -p "huce_bigmem,bigmem,bigmem_intermediate" \
+    sbatch --mem $InvMem \
+           -c $InvCPU \
+           -t $InvTime \
+           -p $SchedulerPartition \
            -W run_inversion.sh $FirstSimSwitch; wait;
 
     # check if exited with non-zero exit code
