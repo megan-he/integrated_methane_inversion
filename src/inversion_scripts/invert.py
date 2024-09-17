@@ -251,6 +251,28 @@ def do_inversion(
 
     inv_Sa = np.diag(1 / Sa_diag)  # Inverse of prior error covariance matrix
 
+    gammas = np.arange(0.1, 1.1, 0.1)
+    J_A_diff_list = []
+    for i, gamma in enumerate(gammas): 
+        # Solve for posterior scale factors xhat
+        ratio = np.linalg.inv(gamma * KTinvSoK + inv_Sa) @ (gamma * KTinvSoyKxA)
+        
+        # Calculate J_A, where ratio = xhat - xA
+        # J_A = (xhat - xA)^T * inv_Sa * (xhat - xA)
+        ratioT = ratio.transpose()
+        J_A = ratioT @ inv_Sa @ ratio
+        J_A_normalized = J_A / n_elements
+        diff = np.abs(J_A_normalized - 1)
+        J_A_diff_list.append(diff)
+        # Compare current normalized J_A to previous J_A to see if it is closer to 1
+        if i > 0:
+            if diff > J_A_diff_list[i-1]:
+                gamma = gammas[i-1]
+                break
+            else:
+                continue
+    print("------Done iterating over gamma-------------------")
+
     # Solve for posterior scale factors xhat
     ratio = np.linalg.inv(gamma * KTinvSoK + inv_Sa) @ (gamma * KTinvSoyKxA)
 
@@ -283,7 +305,7 @@ def do_inversion(
     J_A_normalized = J_A / n_elements
     
     # Print some statistics
-    print(f'gamma: {gamma}')
+    print(f'Ideal gamma: {gamma}')
     print(f'Normalized J_A: {J_A_normalized}') # ideal gamma is where this is close to 1
     print("Min:", xhat[:scale_factor_idx].min(), "Mean:", xhat[:scale_factor_idx].mean(), "Max", xhat[:scale_factor_idx].max())
 
