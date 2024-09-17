@@ -128,7 +128,7 @@ run_posterior() {
             -e "s|perturb_CH4_boundary_conditions: false|perturb_CH4_boundary_conditions: true|g" geoschem_config.yml
 
         printf "\n--- BC OPTIMIZATION ---\n"
-	printf "BC optimized perturbation values for NSEW set to: ${PerturbBCValues}\n"
+        printf "BC optimized perturbation values for NSEW set to: ${PerturbBCValues}\n"
     fi
 
     if "$OptimizeOH"; then
@@ -225,7 +225,8 @@ run_posterior() {
     kf_period=1
 
     printf "\n=== Calling jacobian.py to sample posterior simulation (without jacobian sensitivity analysis) ===\n"
-    python ${InversionPath}/src/inversion_scripts/jacobian.py ${ConfigPath} $StartDate_i $EndDate_i $LonMinInvDomain $LonMaxInvDomain $LatMinInvDomain $LatMaxInvDomain $nElements $tropomiCache $BlendedTROPOMI   $UseWaterObs $isPost $kf_period $buildJacobian False; wait
+    python ${InversionPath}/src/inversion_scripts/jacobian.py ${ConfigPath} $StartDate_i $EndDate_i $LonMinInvDomain $LonMaxInvDomain $LatMinInvDomain $LatMaxInvDomain $nElements $tropomiCache $BlendedTROPOMI $UseWaterObs $isPost $kf_period $buildJacobian False
+    wait
     printf "\n=== DONE sampling the posterior simulation ===\n\n"
     posterior_end=$(date +%s)
 
