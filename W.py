@@ -2,7 +2,7 @@ import xarray as xr
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from src.inversion_scripts.utils import filter_prior_files, get_mean_emissions
+from src.inversion_scripts.utils import get_mean_emissions
 
 def clusters_2d_to_1d(clusters, data, fill_value=0):
     '''
@@ -93,15 +93,16 @@ def source_attribution(w, xhat, shat=None, a=None):
         return xhat_red
 
 def analyze_OH(data_dir):
+    '''Analyze posterior OH statistics'''
+    # currently no option for KF
+
     inversion_result = xr.load_dataset(f'{data_dir}/inversion/inversion_result.nc')
     # Keep only OH elements for analysis
     xhat_OH = inversion_result["xhat"][-2:].to_numpy()
     S_post_OH = inversion_result["S_post"].isel(nvar1=slice(-2,None), nvar2=slice(-2,None)).to_numpy()
     A_OH = inversion_result["A"].isel(nvar1=slice(-2,None), nvar2=slice(-2,None)).to_numpy()
 
-    print(S_post_OH)
-    print(A_OH)
-    print(np.trace(A_OH))
+    return xhat_OH, S_post_OH, A_OH
 
 
 def plot_correlation(w_matrix, kf=False):
@@ -114,7 +115,7 @@ def plot_correlation(w_matrix, kf=False):
     S_post = inversion_result["S_post"].isel(nvar1=slice(None,-2), nvar2=slice(None,-2))
     A = inversion_result["A"].isel(nvar1=slice(None,-2), nvar2=slice(None,-2))
 
-    xhat_reduced, S_post_red, pearson, A_red = source_attribution(w, xhat_emissions, S_post, A)
+    _, _, pearson, _ = source_attribution(w, xhat_emissions, S_post, A)
     cols = pearson.columns.tolist()
 
     # Plot posterior error correlation matrix
@@ -137,8 +138,8 @@ if __name__ == "__main__":
 
     year = 2019
     kalman_mode = False
-    start_date = "20190101"
-    end_date = "20200101"
+    start_date = f"{year}0101"
+    end_date = f"{year}0101"
 
     data_dir = f"/n/holyscratch01/jacob_lab/mhe/Global_{year}_annual"
     months = [i for i in range(1, 13)]
@@ -155,7 +156,6 @@ if __name__ == "__main__":
             # Save W matrix for each month
             w = sectoral_matrix(sv, ds)
 
-            # print(w.sum()*86400*31*1e-9) # Tg/yr
             print(f"Monthly total for {year}{i+5:02d}: {w.to_numpy().sum()*86400*31*1e-9} Tg")
             w.to_csv(f'{data_dir}/w_{year}{i+5:02d}.csv', index=False)
             plot_correlation(w, kalman_mode)
@@ -166,16 +166,19 @@ if __name__ == "__main__":
         # Also check annual mean emissions
         emissions_in_kg_per_s = ds["EmisCH4_Total"] * ds["AREA"]
         total = emissions_in_kg_per_s.sum() * 86400 * 365 * 1e-9
-        print(f"{total.values:.2f} Tg/yr")
+        print(f"Total prior (incl. soil sink): {total.values:.2f} Tg/yr")
 
         # Save annual mean W matrix
         w = sectoral_matrix(sv, ds)
         w_total = w.to_numpy().sum() * 86400 * 365 * 1e-9
-        print(f"{w_total:.2f} Tg/yr")
+        print(f"Total from W matrix: {w_total:.2f} Tg/yr") # this should be slightly lower than the total prior from above?
         w.to_csv(f'{data_dir}/w_{year}_annual.csv', index=False)
 
         # Plot
         plot_correlation(w, kalman_mode)
 
         # Print OH statistics
-        analyze_OH(data_dir)
+        xhat_OH, S_post_OH, A_OH = analyze_OH(data_dir)
+        print(f"xhat[OH]: {xhat_OH}")
+        print(f"S_post[OH]: {S_post_OH}")
+        print(f"Trace of A[OH]: {np.trace(A_OH)}")
