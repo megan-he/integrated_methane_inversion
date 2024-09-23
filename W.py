@@ -62,7 +62,6 @@ def grid_shape_overlap(clusters, x, y, name=None):
     lon_max = 177.5 if lon_max > 177.5 else lon_max # Hardcoded to avoid out of bounds. May not be needed for future shapefiles
     lat_lims = (np.min(y), np.max(y))
     lon_lims = (np.min(x), lon_max)
-    print(lat_lims, lon_lims)
     
     # Convert that to the GC grid (admittedly using grid cell centers 
     # instead of edges, but that should be consesrvative)
@@ -133,12 +132,9 @@ def regional_matrix(statevector, emissions, regions, w_mask):
             # populate with fractional overlaps for grid cells in statevector that overlap with polygon of region boundaries
             w_mask[shape.record[0]] = grid_shape_overlap(statevector, x, y, shape.record[0]) 
     
-    for r in regions:
-        emis = emissions['EmisCH4_Total'].squeeze()
-        emis *= emissions['AREA']
-
+    for r in w_mask.columns:
+        emis = emissions['EmisCH4_Total'].squeeze() * emissions['AREA']
         emis = clusters_2d_to_1d(statevector, emis)
-
         w_mask[r] *= emis
 
     return w_mask
@@ -226,7 +222,7 @@ if __name__ == "__main__":
     year = 2019
     kalman_mode = False
     start_date = f"{year}0101"
-    end_date = f"{year}0101"
+    end_date = f"{int(year)+1}0101"
     shapefile_path = "shapefiles/world-continents.shp"
 
     data_dir = f"/n/holyscratch01/jacob_lab/mhe/Global_{year}_annual"
@@ -259,7 +255,7 @@ if __name__ == "__main__":
         # Save annual mean W sectoral matrix
         w = sectoral_matrix(sv, ds)
         w_total = w.to_numpy().sum() * 86400 * 365 * 1e-9
-        print(f"Total from W matrix: {w_total:.2f} Tg/yr") # this should be slightly lower than the total prior from above?
+        print(f"Total from sectoral W matrix: {w_total:.2f} Tg/yr") # this should be slightly lower than the total prior from above?
         w.to_csv(f'{data_dir}/w_{year}_annual_sectors.csv', index=False)
 
         # Save annual mean W regional matrix
@@ -268,6 +264,8 @@ if __name__ == "__main__":
                                 if r.record[0] != "Antarctica"])
         w_regional_emis = regional_matrix(sv, ds, regions, w_regions_mask)
         w_regional_emis.to_csv(f'{data_dir}/w_{year}_annual_regions.csv', index=False)
+        w_total = w_regional_emis.to_numpy().sum() * 86400 * 365 * 1e-9
+        print(f"Total from regional W matrix: {w_total:.2f} Tg/yr")
 
         # Plot
         plot_correlation(w, kalman_mode)
