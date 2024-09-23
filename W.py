@@ -217,7 +217,7 @@ def plot_correlation(w_matrix, kf=False):
     cbar = fig.colorbar(cax)
     cbar.ax.tick_params(labelsize=20)
     if kf:
-        plt.savefig(f'error_corr_{year}{i+5:02d}.png')
+        plt.savefig(f'error_corr_{year}{i+1:02d}.png')
     else:
         plt.savefig(f'error_corr_{year}.png')
 
@@ -244,8 +244,8 @@ if __name__ == "__main__":
             # Save W matrix for each month
             w = sectoral_matrix(sv, ds)
 
-            print(f"Monthly total for {year}{i+5:02d}: {w.to_numpy().sum()*86400*31*1e-9} Tg")
-            w.to_csv(f'{data_dir}/w_{year}{i+5:02d}.csv', index=False)
+            print(f"Monthly total for {year}{i+1:02d}: {w.to_numpy().sum()*86400*31*1e-9} Tg")
+            w.to_csv(f'{data_dir}/w_{year}{i+1:02d}.csv', index=False)
             plot_correlation(w, kalman_mode)
 
     else:
