@@ -2,6 +2,8 @@ import xarray as xr
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import shapefile
+from shapely.geometry import Polygon, MultiPolygon
 from src.inversion_scripts.utils import get_mean_emissions
 
 def clusters_2d_to_1d(clusters, data, fill_value=0):
@@ -40,6 +42,68 @@ def clusters_2d_to_1d(clusters, data, fill_value=0):
 
     return data['data'].values
 
+
+def grid_shape_overlap(clusters, x, y, name=None):
+    '''
+    Make mask of fractional overlaps for grid cells in statevector that intersect with polygon of region boundaries.
+    Adapted from Hannah Nesser.
+    '''
+    # Initialize mask
+    mask = np.zeros(int(np.nanmax(clusters.values)))
+
+    # Make a polygon
+    c_poly = Polygon(np.column_stack((x, y)))
+    if not c_poly.is_valid:
+        print(f'Buffering {name}')
+        c_poly = c_poly.buffer(0)
+
+    # Get maximum latitude and longitude limits
+    lon_max = np.max(x)
+    lon_max = 177.5 if lon_max > 177.5 else lon_max # Hardcoded to avoid out of bounds. May not be needed for future shapefiles
+    lat_lims = (np.min(y), np.max(y))
+    lon_lims = (np.min(x), lon_max)
+    print(lat_lims, lon_lims)
+    
+    # Convert that to the GC grid (admittedly using grid cell centers 
+    # instead of edges, but that should be consesrvative)
+    c_lat_lims = (clusters.lat.values[clusters.lat < lat_lims[0]][-1],
+                  clusters.lat.values[clusters.lat > lat_lims[1]][0])
+    c_lon_lims = (clusters.lon.values[clusters.lon <= lon_lims[0]][-1],
+                  clusters.lon.values[clusters.lon >= lon_lims[1]][0])
+    c_clusters = clusters.sel(lat=slice(*c_lat_lims), 
+                              lon=slice(*c_lon_lims))
+    c_cluster_list = c_clusters.values.flatten()
+    c_cluster_list = c_cluster_list[c_cluster_list > 0]
+
+    # Iterate through overlapping grid cells
+    for i, gc in enumerate(c_cluster_list):
+        # Get center of grid box
+        gc_center = c_clusters.where(c_clusters == gc, drop=True)
+        gc_center = (gc_center.lon.values[0], gc_center.lat.values[0])
+        
+        # Get corners
+        gc_corners_lon = [gc_center[0] - 2.5/2,
+                          gc_center[0] + 2.5/2,
+                          gc_center[0] + 2.5/2,
+                          gc_center[0] - 2.5/2]
+        gc_corners_lat = [gc_center[1] - 2/2,
+                          gc_center[1] - 2/2,
+                          gc_center[1] + 2/2,
+                          gc_center[1] + 2/2]
+
+        # Make polygon
+        gc_poly = Polygon(np.column_stack((gc_corners_lon, gc_corners_lat)))
+
+        if gc_poly.intersects(c_poly):
+            # Get area of overlap area and GC cell and calculate
+            # the fractional contribution of the overlap area
+            overlap_area = c_poly.intersection(gc_poly).area
+            gc_area = gc_poly.area
+            mask[int(gc) - 1] = overlap_area/gc_area
+
+    return mask
+
+
 def sectoral_matrix(statevector, emissions):
     '''
     Group emissions by sector and generate W matrix
@@ -56,6 +120,29 @@ def sectoral_matrix(statevector, emissions):
         W[s] = emis
 
     return W
+
+def regional_matrix(statevector, emissions, regions, w_mask):
+    '''
+    Group emissions by region/continent and generate W matrix
+    '''
+    for j, shape in enumerate(regions.shapeRecords()):
+        if shape.record[0] in w_mask.columns:
+            # Add a row to w_state
+            x = [i[0] for i in shape.shape.points[:]]
+            y = [i[1] for i in shape.shape.points[:]]
+            # populate with fractional overlaps for grid cells in statevector that overlap with polygon of region boundaries
+            w_mask[shape.record[0]] = grid_shape_overlap(statevector, x, y, shape.record[0]) 
+    
+    for r in regions:
+        emis = emissions['EmisCH4_Total'].squeeze()
+        emis *= emissions['AREA']
+
+        emis = clusters_2d_to_1d(statevector, emis)
+
+        w_mask[r] *= emis
+
+    return w_mask
+
 
 def source_attribution(w, xhat, shat=None, a=None):
     '''
@@ -140,6 +227,7 @@ if __name__ == "__main__":
     kalman_mode = False
     start_date = f"{year}0101"
     end_date = f"{year}0101"
+    shapefile_path = "shapefiles/world-continents.shp"
 
     data_dir = f"/n/holyscratch01/jacob_lab/mhe/Global_{year}_annual"
     months = [i for i in range(1, 13)]
@@ -168,11 +256,18 @@ if __name__ == "__main__":
         total = emissions_in_kg_per_s.sum() * 86400 * 365 * 1e-9
         print(f"Total prior (incl. soil sink): {total.values:.2f} Tg/yr")
 
-        # Save annual mean W matrix
+        # Save annual mean W sectoral matrix
         w = sectoral_matrix(sv, ds)
         w_total = w.to_numpy().sum() * 86400 * 365 * 1e-9
         print(f"Total from W matrix: {w_total:.2f} Tg/yr") # this should be slightly lower than the total prior from above?
-        w.to_csv(f'{data_dir}/w_{year}_annual.csv', index=False)
+        w.to_csv(f'{data_dir}/w_{year}_annual_sectors.csv', index=False)
+
+        # Save annual mean W regional matrix
+        regions = shapefile.Reader(shapefile_path)
+        w_regions_mask = pd.DataFrame(columns=[r.record[0] for r in regions.shapeRecords()
+                                if r.record[0] != "Antarctica"])
+        w_regional_emis = regional_matrix(sv, ds, regions, w_regions_mask)
+        w_regional_emis.to_csv(f'{data_dir}/w_{year}_annual_regions.csv', index=False)
 
         # Plot
         plot_correlation(w, kalman_mode)
