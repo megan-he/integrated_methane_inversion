@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import shapefile
+import geopandas as gpd
 from shapely.geometry import Polygon, MultiPolygon
 from src.inversion_scripts.utils import get_mean_emissions
 
@@ -122,16 +123,16 @@ def sectoral_matrix(statevector, emissions):
 
 def regional_matrix(statevector, emissions, regions, w_mask):
     '''
-    Group emissions by region/continent and generate W matrix
+    Group emissions by custom region/continent and generate W matrix
     '''
     for j, shape in enumerate(regions.shapeRecords()):
-        if shape.record[0] in w_mask.columns:
+        if shape.record[1] in w_mask.columns:
             # Add a row to w_state
             x = [i[0] for i in shape.shape.points[:]]
             y = [i[1] for i in shape.shape.points[:]]
             # populate with fractional overlaps for grid cells in statevector that overlap with polygon of region boundaries
-            w_mask[shape.record[0]] = grid_shape_overlap(statevector, x, y, shape.record[0]) 
-    
+            w_mask[shape.record[1]] = grid_shape_overlap(statevector, x, y, shape.record[1]) 
+
     for r in w_mask.columns:
         emis = emissions['EmisCH4_Total'].squeeze() * emissions['AREA']
         emis = clusters_2d_to_1d(statevector, emis)
@@ -223,7 +224,7 @@ if __name__ == "__main__":
     kalman_mode = False
     start_date = f"{year}0101"
     end_date = f"{int(year)+1}0101"
-    shapefile_path = "shapefiles/world-continents.shp"
+    shapefile_path = "shapefiles/merged.shp" # the merged shapefile is created using make_shapefiles.py
 
     data_dir = f"/n/holyscratch01/jacob_lab/mhe/Global_{year}_annual"
     months = [i for i in range(1, 13)]
@@ -256,14 +257,14 @@ if __name__ == "__main__":
         w = sectoral_matrix(sv, ds)
         w_total = w.to_numpy().sum() * 86400 * 365 * 1e-9
         print(f"Total from sectoral W matrix: {w_total:.2f} Tg/yr") # this should be slightly lower than the total prior from above?
-        w.to_csv(f'{data_dir}/w_{year}_annual_sectors.csv', index=False)
+        # w.to_csv(f'{data_dir}/w_{year}_annual_sectors.csv', index=False)
 
         # Save annual mean W regional matrix
-        regions = shapefile.Reader(shapefile_path)
-        w_regions_mask = pd.DataFrame(columns=[r.record[0] for r in regions.shapeRecords()
-                                if r.record[0] != "Antarctica"])
+        regions = shapefile.Reader(shapefile_path, encoding='windows-1252')
+        unique_regions = np.unique([r.record[1] for r in regions.shapeRecords()])
+        w_regions_mask = pd.DataFrame(columns=unique_regions)
         w_regional_emis = regional_matrix(sv, ds, regions, w_regions_mask)
-        w_regional_emis.to_csv(f'{data_dir}/w_{year}_annual_regions.csv', index=False)
+        # w_regional_emis.to_csv(f'{data_dir}/w_{year}_annual_regions.csv', index=False)
         w_total = w_regional_emis.to_numpy().sum() * 86400 * 365 * 1e-9
         print(f"Total from regional W matrix: {w_total:.2f} Tg/yr")
 
