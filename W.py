@@ -213,10 +213,12 @@ def plot_correlation(w_matrix, kf=False):
     ax.set_yticklabels(cols, fontsize=18)
     cbar = fig.colorbar(cax)
     cbar.ax.tick_params(labelsize=20)
+
+    attribution = 'sector' if 'sector' in w_matrix else 'region'
     if kf:
-        plt.savefig(f'error_corr_{year}{i+1:02d}.png')
+        plt.savefig(f'error_corr_{year}{i+1:02d}_{attribution}.png')
     else:
-        plt.savefig(f'error_corr_{year}.png')
+        plt.savefig(f'error_corr_{year}_{attribution}.png')
 
 if __name__ == "__main__":
 
