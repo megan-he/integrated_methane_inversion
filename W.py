@@ -254,8 +254,8 @@ if __name__ == "__main__":
         print(f"Total prior (incl. soil sink): {total.values:.2f} Tg/yr")
 
         # Save annual mean W sectoral matrix
-        w = sectoral_matrix(sv, ds)
-        w_total = w.to_numpy().sum() * 86400 * 365 * 1e-9
+        w_sectoral = sectoral_matrix(sv, ds)
+        w_total = w_sectoral.to_numpy().sum() * 86400 * 365 * 1e-9
         print(f"Total from sectoral W matrix: {w_total:.2f} Tg/yr") # this should be slightly lower than the total prior from above?
         # w.to_csv(f'{data_dir}/w_{year}_annual_sectors.csv', index=False)
 
@@ -263,13 +263,14 @@ if __name__ == "__main__":
         regions = shapefile.Reader(shapefile_path, encoding='windows-1252')
         unique_regions = np.unique([r.record[1] for r in regions.shapeRecords()])
         w_regions_mask = pd.DataFrame(columns=unique_regions)
-        w_regional_emis = regional_matrix(sv, ds, regions, w_regions_mask)
+        w_regional = regional_matrix(sv, ds, regions, w_regions_mask)
         # w_regional_emis.to_csv(f'{data_dir}/w_{year}_annual_regions.csv', index=False)
-        w_total = w_regional_emis.to_numpy().sum() * 86400 * 365 * 1e-9
+        w_total = w_regional.to_numpy().sum() * 86400 * 365 * 1e-9
         print(f"Total from regional W matrix: {w_total:.2f} Tg/yr")
 
         # Plot
-        plot_correlation(w, kalman_mode)
+        plot_correlation(w_sectoral, kalman_mode)
+        plot_correlation(w_regional, kalman_mode)
 
         # Print OH statistics
         xhat_OH, S_post_OH, A_OH = analyze_OH(data_dir)
