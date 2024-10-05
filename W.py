@@ -189,8 +189,15 @@ def analyze_OH(data_dir):
     return xhat_OH, S_post_OH, A_OH
 
 
-def plot_correlation(w_matrix, kf=False):
-    '''Plot error correlation matrix given W'''
+def plot_correlation(w_matrix, kf=False, name=None):
+    '''Plot error correlation matrix given W
+
+    Args:
+        w_matrix: matrix generated from sectoral_matrix() or regional_matrix()
+        kf (bool): if we are in kalman mode (monthly) or annual. Default is annual
+        name (str): type of plot to save (sectoral or regional)
+    
+    '''
 
     w = w_matrix.T
     inversion_result = xr.load_dataset(f'{data_dir}/inversion/inversion_result.nc')
@@ -214,11 +221,10 @@ def plot_correlation(w_matrix, kf=False):
     cbar = fig.colorbar(cax)
     cbar.ax.tick_params(labelsize=20)
 
-    attribution = 'sector' if 'sector' in w_matrix else 'region'
     if kf:
-        plt.savefig(f'error_corr_{year}{i+1:02d}_{attribution}.png')
+        plt.savefig(f'error_corr_{year}{i+1:02d}_{name}.png')
     else:
-        plt.savefig(f'error_corr_{year}_{attribution}.png')
+        plt.savefig(f'error_corr_{year}_{name}.png')
 
 if __name__ == "__main__":
 
@@ -271,8 +277,8 @@ if __name__ == "__main__":
         print(f"Total from regional W matrix: {w_total:.2f} Tg/yr")
 
         # Plot
-        plot_correlation(w_sectoral, kalman_mode)
-        plot_correlation(w_regional, kalman_mode)
+        plot_correlation(w_sectoral, kalman_mode, name='sectoral')
+        plot_correlation(w_regional, kalman_mode, name='regional')
 
         # Print OH statistics
         xhat_OH, S_post_OH, A_OH = analyze_OH(data_dir)
