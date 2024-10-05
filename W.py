@@ -138,6 +138,8 @@ def regional_matrix(statevector, emissions, regions, w_mask):
         emis = clusters_2d_to_1d(statevector, emis)
         w_mask[r] *= emis
 
+    w_mask = w_mask.rename(columns={'United States of America': 'USA'})
+
     return w_mask
 
 
@@ -210,16 +212,18 @@ def plot_correlation(w_matrix, kf=False, name=None):
     cols = pearson.columns.tolist()
 
     # Plot posterior error correlation matrix
-    fig = plt.figure(figsize=(19,15))
+    fig = plt.figure(figsize=(8, 8))
+    plt.rcParams.update({"font.size": 16})
     ax = fig.add_subplot(111)
     cax = ax.matshow(pearson.corr(), origin='lower', cmap='RdBu_r', vmin=-1, vmax=1)
     ax.set_xticks(range(len(cols)))
     ax.set_yticks(range(len(cols)))
     ax.xaxis.set_ticks_position('bottom')
-    ax.set_xticklabels(cols, rotation=45, fontsize=18)
-    ax.set_yticklabels(cols, fontsize=18)
+    ax.set_xticklabels(cols, rotation=90)
+    ax.set_yticklabels(cols)
     cbar = fig.colorbar(cax)
-    cbar.ax.tick_params(labelsize=20)
+    cbar.ax.tick_params()
+    plt.tight_layout()
 
     if kf:
         plt.savefig(f'error_corr_{year}{i+1:02d}_{name}.png')
