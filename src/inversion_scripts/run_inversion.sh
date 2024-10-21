@@ -51,7 +51,10 @@ SpinupDir="${OutputPath}/${RunName}/spinup_run"
 JacobianRunsDir="${OutputPath}/${RunName}/jacobian_runs"
 PriorRunDir="${JacobianRunsDir}/${RunName}_0000"
 BackgroundRunDir="${JacobianRunsDir}/${RunName}_background"
-PosteriorRunDir="${OutputPath}/${RunName}/posterior_run"
+# PosteriorRunDir="${OutputPath}/${RunName}/posterior_run"
+year=${StartDate:0:4}
+PrevYear=$((year - 1))
+PosteriorRunDir="${OutputPath}/Global_${PrevYear}_annual/posterior_run" # use previous year's posterior for postproc_diags.py
 StateVectorFile={STATE_VECTOR_PATH}
 GCDir="./data_geoschem"
 GCVizDir="./data_geoschem_prior"
@@ -62,7 +65,7 @@ period_i={PERIOD}
 
 # For Kalman filter: assume first inversion period (( period_i = 1 )) by default
 # Switch is flipped to false automatically if (( period_i > 1 ))
-FirstSimSwitch=$1
+FirstSimSwitch=false # in order to use previous year's posterior for postproc_diags.py
 
 printf "\n=== EXECUTING RUN_INVERSION.SH ===\n"
     
