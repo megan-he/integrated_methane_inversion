@@ -232,7 +232,7 @@ def plot_correlation(w_matrix, kf=False, name=None):
 
 if __name__ == "__main__":
 
-    year = 2019
+    year = 2020
     kalman_mode = False
     start_date = f"{year}0101"
     end_date = f"{int(year)+1}0101"
@@ -269,14 +269,14 @@ if __name__ == "__main__":
         w_sectoral = sectoral_matrix(sv, ds)
         w_total = w_sectoral.to_numpy().sum() * 86400 * 365 * 1e-9
         print(f"Total from sectoral W matrix: {w_total:.2f} Tg/yr") # this should be slightly lower than the total prior from above?
-        # w.to_csv(f'{data_dir}/w_{year}_annual_sectors.csv', index=False)
+        w_sectoral.to_csv(f'{data_dir}/w_{year}_annual_sectors.csv', index=False)
 
         # Save annual mean W regional matrix
         regions = shapefile.Reader(shapefile_path, encoding='windows-1252')
         unique_regions = np.unique([r.record[1] for r in regions.shapeRecords()])
         w_regions_mask = pd.DataFrame(columns=unique_regions)
         w_regional = regional_matrix(sv, ds, regions, w_regions_mask)
-        # w_regional_emis.to_csv(f'{data_dir}/w_{year}_annual_regions.csv', index=False)
+        w_regional.to_csv(f'{data_dir}/w_{year}_annual_regions.csv', index=False)
         w_total = w_regional.to_numpy().sum() * 86400 * 365 * 1e-9
         print(f"Total from regional W matrix: {w_total:.2f} Tg/yr")
 
