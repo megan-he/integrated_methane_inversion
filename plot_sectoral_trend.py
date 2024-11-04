@@ -50,8 +50,7 @@ if __name__ == "__main__":
     years = [2019, 2020, 2021]
 
     sector = "OG"
-    if sector == "OG":
-        oil_gas = True
+    oil_gas = True if sector == "OG" else False
 
     posterior_sector = calc_sectoral_trend(sector, years, oil_gas)
 
