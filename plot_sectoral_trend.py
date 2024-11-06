@@ -20,7 +20,7 @@ def calc_sectoral_trend(sector_name, year_list, oil_gas=False, wastewater_landfi
         if oil_gas:
             posterior_sectoral = posterior_ds["EmisCH4_Oil"] + posterior_ds["EmisCH4_Gas"]
         elif wastewater_landfills:
-            posterior_sectoral = posterior_ds["EmisCH4_Wastewater"] + posterior_ds["EmisCH4_Landfills"]
+            posterior_sectoral = posterior_ds["EmisCH4_Wastewater"] + posterior_ds["EmisCH4_Landfills"] + posterior_ds["EmisCH4_OtherAnth"]
         else:
             posterior_sectoral = posterior_ds[f"EmisCH4_{sector_name}"]
         trend_list.append(posterior_sectoral)
@@ -51,9 +51,9 @@ if __name__ == "__main__":
     invdir = f"/n/holyscratch01/jacob_lab/mhe"
     years = [2019, 2020, 2021]
 
-    sector = "Wastewater and Landfills"
+    sector = "Wastewater_Landfills_OtherAnth"
     oil_gas = True if sector == "OG" else False
-    wastewater_landfills = True if sector == "Wastewater and Landfills" else False # combine due to low ability of inversion to separate these sectors
+    wastewater_landfills = True if sector == "Wastewater_Landfills_OtherAnth" else False # combine due to low ability of inversion to separate these sectors
 
     posterior_sector = calc_sectoral_trend(sector, years, oil_gas, wastewater_landfills)
 
