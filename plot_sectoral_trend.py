@@ -5,7 +5,7 @@ import cartopy.crs as ccrs
 import colorcet as cc
 from src.inversion_scripts.utils import plot_field
 
-def calc_sectoral_trend(sector_name, year_list, oil_gas=False):
+def calc_sectoral_trend(sector_name, year_list, oil_gas=False, wastewater_landfills=False):
 
     trend_list = []
     areas = []
@@ -19,6 +19,8 @@ def calc_sectoral_trend(sector_name, year_list, oil_gas=False):
         
         if oil_gas:
             posterior_sectoral = posterior_ds["EmisCH4_Oil"] + posterior_ds["EmisCH4_Gas"]
+        elif wastewater_landfills:
+            posterior_sectoral = posterior_ds["EmisCH4_Wastewater"] + posterior_ds["EmisCH4_Landfills"]
         else:
             posterior_sectoral = posterior_ds[f"EmisCH4_{sector_name}"]
         trend_list.append(posterior_sectoral)
@@ -49,10 +51,11 @@ if __name__ == "__main__":
     invdir = f"/n/holyscratch01/jacob_lab/mhe"
     years = [2019, 2020, 2021]
 
-    sector = "OG"
+    sector = "Wastewater and Landfills"
     oil_gas = True if sector == "OG" else False
+    wastewater_landfills = True if sector == "Wastewater and Landfills" else False # combine due to low ability of inversion to separate these sectors
 
-    posterior_sector = calc_sectoral_trend(sector, years, oil_gas)
+    posterior_sector = calc_sectoral_trend(sector, years, oil_gas, wastewater_landfills)
 
     # Load state vector
     state_vector = xr.load_dataset(f"{invdir}/Global_2019_annual_edgarv7/StateVector.nc")
