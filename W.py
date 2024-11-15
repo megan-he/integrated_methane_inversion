@@ -6,6 +6,10 @@ import shapefile
 from shapely.geometry import Polygon, MultiPolygon
 from src.inversion_scripts.utils import get_mean_emissions
 
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
+
+
 def clusters_2d_to_1d(clusters, data, fill_value=0):
     '''
     Flattens data on the GEOS-Chem grid, and ensures the resulting order is
@@ -103,7 +107,7 @@ def grid_shape_overlap(clusters, x, y, name=None):
     return mask
 
 
-def sectoral_matrix(statevector, emissions):
+def sectoral_matrix(statevector, emissions, n_elements, include_oh=False):
     '''
     Group emissions by sector and generate W matrix
     '''
@@ -118,9 +122,21 @@ def sectoral_matrix(statevector, emissions):
 
         W[s] = emis
 
-    return W
+    if include_oh:
+        W_withOH = pd.DataFrame(0, index=range(n_elements + 2), columns=range(len(sectors) + 2))
+        W_withOH.iloc[:n_elements, :len(sectors)] = W # populate with emissions W
 
-def regional_matrix(statevector, emissions, regions, w_mask):
+        # Set the last two diagonal elements to 1 for hemispheric OH (because prior scaling factor is 1)
+        W_withOH.iloc[4111, len(sectors)] = 1  # N. Hemisphere OH
+        W_withOH.iloc[4112, len(sectors)+1] = 1  # S. Hemisphere OH
+
+        W_withOH.columns = list(W.columns) + ["NH OH", "SH OH"]
+
+        return W_withOH
+    else: 
+        return W
+
+def regional_matrix(statevector, emissions, n_elements, regions, w_mask, include_oh=False):
     '''
     Group emissions by custom region/continent and generate W matrix
     '''
@@ -139,7 +155,19 @@ def regional_matrix(statevector, emissions, regions, w_mask):
 
     w_mask = w_mask.rename(columns={'United States of America': 'USA'})
 
-    return w_mask
+    if include_oh:
+        W_withOH = pd.DataFrame(0, index=range(n_elements + 2), columns=range(len(w_mask.columns) + 2))
+        W_withOH.iloc[:n_elements, :len(w_mask.columns)] = w_mask # populate with emissions W
+
+        # Set the last two diagonal elements to 1 for hemispheric OH (because prior scaling factor is 1)
+        W_withOH.iloc[4111, len(w_mask.columns)] = 1  # N. Hemisphere OH
+        W_withOH.iloc[4112, len(w_mask.columns)+1] = 1  # S. Hemisphere OH
+
+        W_withOH.columns = list(w_mask.columns) + ["NH OH", "SH OH"]
+
+        return W_withOH
+    else:
+        return w_mask
 
 
 def source_attribution(w, xhat, shat=None, a=None):
@@ -200,10 +228,10 @@ def plot_correlation(w_matrix, name=None):
 
     w = w_matrix.T
     inversion_result = xr.load_dataset(f'{data_dir}/inversion/inversion_result.nc')
-    # Keep only emission elements for analysis
-    xhat_emissions = inversion_result["xhat"][:-2]
-    S_post = inversion_result["S_post"].isel(nvar1=slice(None,-2), nvar2=slice(None,-2))
-    A = inversion_result["A"].isel(nvar1=slice(None,-2), nvar2=slice(None,-2))
+    # Includes emission elements and OH elements
+    xhat_emissions = inversion_result["xhat"]
+    S_post = inversion_result["S_post"]
+    A = inversion_result["A"]
 
     _, _, pearson, A_red = source_attribution(w, xhat_emissions, S_post, A)
     cols = pearson.columns.tolist()
@@ -239,6 +267,7 @@ if __name__ == "__main__":
     sv_path = f"{data_dir}/StateVector.nc"
     sv = xr.open_dataset(sv_path)
     sv = sv.to_dataarray('StateVector')
+    n_elements = int(np.nanmax(sv.values)) # number of emission elements
 
     ds = get_mean_emissions(start_date, end_date, prior_cache_path)
     ds.to_netcdf(f"{data_dir}/HEMCO_diagnostics.{year}.nc")
@@ -248,7 +277,8 @@ if __name__ == "__main__":
     print(f"Total prior (incl. soil sink): {total.values:.2f} Tg/yr")
 
     # Save annual mean W sectoral matrix
-    w_sectoral = sectoral_matrix(sv, ds)
+    include_oh = True
+    w_sectoral = sectoral_matrix(sv, ds, n_elements, include_oh)
     w_total = w_sectoral.to_numpy().sum() * 86400 * 365 * 1e-9
     print(f"Total from sectoral W matrix: {w_total:.2f} Tg/yr") # this should be slightly lower than the total prior from above?
     w_sectoral.to_csv(f'{data_dir}/w_{year}_annual_sectors.csv', index=False)
@@ -257,7 +287,7 @@ if __name__ == "__main__":
     regions = shapefile.Reader(shapefile_path, encoding='windows-1252')
     unique_regions = np.unique([r.record[1] for r in regions.shapeRecords()])
     w_regions_mask = pd.DataFrame(columns=unique_regions)
-    w_regional = regional_matrix(sv, ds, regions, w_regions_mask)
+    w_regional = regional_matrix(sv, ds, n_elements, regions, w_regions_mask, include_oh)
     w_regional.to_csv(f'{data_dir}/w_{year}_annual_regions.csv', index=False)
     w_total = w_regional.to_numpy().sum() * 86400 * 365 * 1e-9
     print(f"Total from regional W matrix: {w_total:.2f} Tg/yr")
