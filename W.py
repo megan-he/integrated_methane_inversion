@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import shapefile
-import geopandas as gpd
 from shapely.geometry import Polygon, MultiPolygon
 from src.inversion_scripts.utils import get_mean_emissions
 
@@ -180,7 +179,6 @@ def source_attribution(w, xhat, shat=None, a=None):
 
 def analyze_OH(data_dir):
     '''Analyze posterior OH statistics'''
-    # currently no option for KF
 
     inversion_result = xr.load_dataset(f'{data_dir}/inversion/inversion_result.nc')
     # Keep only OH elements for analysis
@@ -191,12 +189,11 @@ def analyze_OH(data_dir):
     return xhat_OH, S_post_OH, A_OH
 
 
-def plot_correlation(w_matrix, kf=False, name=None):
+def plot_correlation(w_matrix, name=None):
     '''Plot error correlation matrix given W
 
     Args:
         w_matrix: matrix generated from sectoral_matrix() or regional_matrix()
-        kf (bool): if we are in kalman mode (monthly) or annual. Default is annual
         name (str): type of plot to save (sectoral or regional)
     
     '''
@@ -208,7 +205,7 @@ def plot_correlation(w_matrix, kf=False, name=None):
     S_post = inversion_result["S_post"].isel(nvar1=slice(None,-2), nvar2=slice(None,-2))
     A = inversion_result["A"].isel(nvar1=slice(None,-2), nvar2=slice(None,-2))
 
-    _, _, pearson, _ = source_attribution(w, xhat_emissions, S_post, A)
+    _, _, pearson, A_red = source_attribution(w, xhat_emissions, S_post, A)
     cols = pearson.columns.tolist()
 
     # Plot posterior error correlation matrix
@@ -225,20 +222,16 @@ def plot_correlation(w_matrix, kf=False, name=None):
     cbar.ax.tick_params()
     plt.tight_layout()
 
-    if kf:
-        plt.savefig(f'error_corr_{year}{i+1:02d}_{name}.png')
-    else:
-        plt.savefig(f'error_corr_{year}_{name}.png')
+    plt.savefig(f'error_corr_{year}_{name}.png')
 
 if __name__ == "__main__":
 
-    year = 2020
-    kalman_mode = False
+    year = 2019
     start_date = f"{year}0101"
     end_date = f"{int(year)+1}0101"
     shapefile_path = "shapefiles/merged.shp" # the merged shapefile is created using make_shapefiles.py
 
-    data_dir = f"/n/holyscratch01/jacob_lab/mhe/Global_{year}_annual"
+    data_dir = f"/n/holyscratch01/jacob_lab/mhe/Global_{year}_annual_edgarv7"
     months = [i for i in range(1, 13)]
     emis_files = [f'{data_dir}/hemco_prior_emis/OutputDir/HEMCO_sa_diagnostics.{year}{m:02d}010000.nc'
                 for m in months] # list of emissions for first day in each month
@@ -247,45 +240,34 @@ if __name__ == "__main__":
     sv = xr.open_dataset(sv_path)
     sv = sv.to_dataarray('StateVector')
 
-    if kalman_mode:
-        for i, emis in enumerate(emis_files):
-            ds = xr.load_dataset(emis)
-            # Save W matrix for each month
-            w = sectoral_matrix(sv, ds)
+    ds = get_mean_emissions(start_date, end_date, prior_cache_path)
+    ds.to_netcdf(f"{data_dir}/HEMCO_diagnostics.{year}.nc")
+    # Also check annual mean emissions
+    emissions_in_kg_per_s = ds["EmisCH4_Total"] * ds["AREA"]
+    total = emissions_in_kg_per_s.sum() * 86400 * 365 * 1e-9
+    print(f"Total prior (incl. soil sink): {total.values:.2f} Tg/yr")
 
-            print(f"Monthly total for {year}{i+1:02d}: {w.to_numpy().sum()*86400*31*1e-9} Tg")
-            w.to_csv(f'{data_dir}/w_{year}{i+1:02d}.csv', index=False)
-            plot_correlation(w, kalman_mode)
+    # Save annual mean W sectoral matrix
+    w_sectoral = sectoral_matrix(sv, ds)
+    w_total = w_sectoral.to_numpy().sum() * 86400 * 365 * 1e-9
+    print(f"Total from sectoral W matrix: {w_total:.2f} Tg/yr") # this should be slightly lower than the total prior from above?
+    w_sectoral.to_csv(f'{data_dir}/w_{year}_annual_sectors.csv', index=False)
 
-    else:
-        ds = get_mean_emissions(start_date, end_date, prior_cache_path)
-        ds.to_netcdf(f"{data_dir}/HEMCO_diagnostics.{year}.nc")
-        # Also check annual mean emissions
-        emissions_in_kg_per_s = ds["EmisCH4_Total"] * ds["AREA"]
-        total = emissions_in_kg_per_s.sum() * 86400 * 365 * 1e-9
-        print(f"Total prior (incl. soil sink): {total.values:.2f} Tg/yr")
+    # Save annual mean W regional matrix
+    regions = shapefile.Reader(shapefile_path, encoding='windows-1252')
+    unique_regions = np.unique([r.record[1] for r in regions.shapeRecords()])
+    w_regions_mask = pd.DataFrame(columns=unique_regions)
+    w_regional = regional_matrix(sv, ds, regions, w_regions_mask)
+    w_regional.to_csv(f'{data_dir}/w_{year}_annual_regions.csv', index=False)
+    w_total = w_regional.to_numpy().sum() * 86400 * 365 * 1e-9
+    print(f"Total from regional W matrix: {w_total:.2f} Tg/yr")
 
-        # Save annual mean W sectoral matrix
-        w_sectoral = sectoral_matrix(sv, ds)
-        w_total = w_sectoral.to_numpy().sum() * 86400 * 365 * 1e-9
-        print(f"Total from sectoral W matrix: {w_total:.2f} Tg/yr") # this should be slightly lower than the total prior from above?
-        w_sectoral.to_csv(f'{data_dir}/w_{year}_annual_sectors.csv', index=False)
+    # Plot
+    plot_correlation(w_sectoral, name='sectoral')
+    plot_correlation(w_regional, name='regional')
 
-        # Save annual mean W regional matrix
-        regions = shapefile.Reader(shapefile_path, encoding='windows-1252')
-        unique_regions = np.unique([r.record[1] for r in regions.shapeRecords()])
-        w_regions_mask = pd.DataFrame(columns=unique_regions)
-        w_regional = regional_matrix(sv, ds, regions, w_regions_mask)
-        w_regional.to_csv(f'{data_dir}/w_{year}_annual_regions.csv', index=False)
-        w_total = w_regional.to_numpy().sum() * 86400 * 365 * 1e-9
-        print(f"Total from regional W matrix: {w_total:.2f} Tg/yr")
-
-        # Plot
-        plot_correlation(w_sectoral, kalman_mode, name='sectoral')
-        plot_correlation(w_regional, kalman_mode, name='regional')
-
-        # Print OH statistics
-        xhat_OH, S_post_OH, A_OH = analyze_OH(data_dir)
-        print(f"xhat[OH]: {xhat_OH}")
-        print(f"S_post[OH]: {S_post_OH}")
-        print(f"Trace of A[OH]: {np.trace(A_OH)}")
+    # Print OH statistics
+    xhat_OH, S_post_OH, A_OH = analyze_OH(data_dir)
+    print(f"xhat[OH]: {xhat_OH}")
+    print(f"S_post[OH]: {S_post_OH}")
+    print(f"Trace of A[OH]: {np.trace(A_OH)}")
