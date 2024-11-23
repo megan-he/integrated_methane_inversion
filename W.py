@@ -2,6 +2,7 @@ import xarray as xr
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.patches import Ellipse
 import shapefile
 from shapely.geometry import Polygon, MultiPolygon
 from src.inversion_scripts.utils import get_mean_emissions
@@ -105,6 +106,26 @@ def grid_shape_overlap(clusters, x, y, name=None):
             mask[int(gc) - 1] = overlap_area/gc_area
 
     return mask
+
+def aggregate_matrix(statevector, emissions, n_elements, include_oh=True):
+    '''
+    Aggregate all emissions, aggregate global OH, and generate W matrix
+    '''
+    cols = ['Emissions', 'OH']
+    W_withOH = pd.DataFrame(0, index=range(n_elements + 2), columns=cols)
+
+    # Fill first column with prior emissions
+    emis = emissions['EmisCH4_Total'].squeeze()
+    emis *= emissions['AREA']
+
+    emis = clusters_2d_to_1d(statevector, emis)
+
+    W_withOH['Emissions'][:len(emis)] = emis
+
+    # Fill second column with 1 (OH prior) in last two rows. Everywhere else is 0 by default
+    W_withOH['OH'].iloc[-2:] = 1
+
+    return W_withOH
 
 
 def sectoral_matrix(statevector, emissions, n_elements, include_oh=False):
@@ -236,6 +257,49 @@ def plot_correlation(w_matrix, name=None):
     _, _, pearson, A_red = source_attribution(w, xhat_emissions, S_post, A)
     cols = pearson.columns.tolist()
 
+    mean = [0, 0]
+
+    def plot_ellipse(corr_matrix, mean, ax, n_std=2.0, **kwargs):
+        """
+        Plot a confidence ellipse based on a Pearson correlation matrix.
+        
+        Args:
+            corr_matrix (2x2 array): Pearson correlation matrix
+            mean (list): [x_mean, y_mean]
+            ax (matplotlib.axes.Axes): Axes to plot the ellipse
+            n_std (float): Number of standard deviations
+            **kwargs: Additional keyword arguments for the ellipse
+        """
+
+        # Eigenvalues and eigenvectors for the correlation matrix
+        eigenvalues, eigenvectors = np.linalg.eigh(corr_matrix)
+        order = eigenvalues.argsort()[::-1]
+        eigenvalues, eigenvectors = eigenvalues[order], eigenvectors[:, order]
+
+        # Compute the ellipse angle and dimensions
+        angle = np.degrees(np.arctan2(*eigenvectors[:, 0][::-1]))
+        width, height = n_std * np.sqrt(eigenvalues)
+
+        # Create the ellipse
+        ellipse = Ellipse(xy=mean, width=width, height=height, angle=angle, **kwargs)
+        ax.add_patch(ellipse)
+        ellipse.set_edgecolor('red')
+        ellipse.set_facecolor('none')
+
+    # Plot ellipse
+    fig = plt.figure(figsize=(8, 8))
+    plt.rcParams.update({"font.size": 16})
+    ax = fig.add_subplot(111)
+    plot_ellipse(pearson, mean, ax, edgecolor='blue')
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_xlim(-1.25, 1.25)
+    ax.set_ylim(-1.25, 1.25)
+    ax.set_xlabel('Global emissions')
+    ax.set_ylabel('Global OH')
+    plt.tight_layout()
+    plt.savefig(f'error_corr_{year}_{name}_ellipse.png')
+
     # Plot posterior error correlation matrix
     fig = plt.figure(figsize=(8, 8))
     plt.rcParams.update({"font.size": 16})
@@ -259,7 +323,7 @@ if __name__ == "__main__":
     end_date = f"{int(year)+1}0101"
     shapefile_path = "shapefiles/merged.shp" # the merged shapefile is created using make_shapefiles.py
 
-    data_dir = f"/n/holyscratch01/jacob_lab/mhe/Global_{year}_annual_edgarv7"
+    data_dir = f"/n/netscratch/jacob_lab/Lab/mhe/Global_{year}_annual_edgarv7"
     months = [i for i in range(1, 13)]
     emis_files = [f'{data_dir}/hemco_prior_emis/OutputDir/HEMCO_sa_diagnostics.{year}{m:02d}010000.nc'
                 for m in months] # list of emissions for first day in each month
@@ -278,6 +342,7 @@ if __name__ == "__main__":
 
     # Save annual mean W sectoral matrix
     include_oh = True
+    w_aggregate = aggregate_matrix(sv, ds, n_elements, include_oh)
     w_sectoral = sectoral_matrix(sv, ds, n_elements, include_oh)
     w_total = w_sectoral.to_numpy().sum() * 86400 * 365 * 1e-9
     print(f"Total from sectoral W matrix: {w_total:.2f} Tg/yr") # this should be slightly lower than the total prior from above?
@@ -295,6 +360,7 @@ if __name__ == "__main__":
     # Plot
     plot_correlation(w_sectoral, name='sectoral')
     plot_correlation(w_regional, name='regional')
+    plot_correlation(w_aggregate, name='aggregate')
 
     # Print OH statistics
     xhat_OH, S_post_OH, A_OH = analyze_OH(data_dir)
