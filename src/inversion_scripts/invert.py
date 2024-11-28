@@ -133,6 +133,7 @@ def do_inversion(
             & (obs_GC[:, 2] <= xlim[1])
             & (obs_GC[:, 3] >= ylim[0])
             & (obs_GC[:, 3] <= ylim[1])
+            & (np.round(obs_GC[:, 4]) > 0)
         )[0]
 
         # Skip if no data in bounds
