@@ -228,7 +228,6 @@ def source_attribution(w, xhat, shat=None, a=None):
 
 def analyze_OH(data_dir):
     '''Analyze posterior OH statistics'''
-
     inversion_result = xr.load_dataset(f'{data_dir}/inversion/inversion_result.nc')
     # Keep only OH elements for analysis
     xhat_OH = inversion_result["xhat"][-2:].to_numpy()
@@ -286,19 +285,23 @@ def plot_correlation(w_matrix, name=None):
         ellipse.set_edgecolor('red')
         ellipse.set_facecolor('none')
 
-    # Plot ellipse
-    fig = plt.figure(figsize=(8, 8))
-    plt.rcParams.update({"font.size": 16})
-    ax = fig.add_subplot(111)
-    plot_ellipse(pearson, mean, ax, edgecolor='blue')
-    ax.set_xticks([])
-    ax.set_yticks([])
-    ax.set_xlim(-1.25, 1.25)
-    ax.set_ylim(-1.25, 1.25)
-    ax.set_xlabel('Global emissions')
-    ax.set_ylabel('Global OH')
-    plt.tight_layout()
-    plt.savefig(f'error_corr_{year}_{name}_ellipse.png')
+    if name == 'aggregate':
+        # Plot ellipse
+        fig = plt.figure(figsize=(8, 8))
+        plt.rcParams.update({"font.size": 16})
+        ax = fig.add_subplot(111)
+
+        print(f"Pearson's coefficient b/w emissions and OH = {pearson['OH'][0]:.2f}")
+        
+        plot_ellipse(pearson, mean, ax, edgecolor='blue')
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_xlim(-1.25, 1.25)
+        ax.set_ylim(-1.25, 1.25)
+        ax.set_xlabel('Global emissions')
+        ax.set_ylabel('Global OH')
+        plt.tight_layout()
+        plt.savefig(f'error_corr_{year}_{name}_ellipse.png')
 
     # Plot posterior error correlation matrix
     fig = plt.figure(figsize=(8, 8))
@@ -318,12 +321,13 @@ def plot_correlation(w_matrix, name=None):
 
 if __name__ == "__main__":
 
-    year = 2019
+    year = 2021
     start_date = f"{year}0101"
     end_date = f"{int(year)+1}0101"
     shapefile_path = "shapefiles/merged.shp" # the merged shapefile is created using make_shapefiles.py
 
-    data_dir = f"/n/netscratch/jacob_lab/Lab/mhe/Global_{year}_annual_edgarv7"
+    data_dir = f"/n/netscratch/jacob_lab/Lab/mhe/Global_{year}_annual"
+    # data_dir = f"/n/holylfs05/LABS/jacob_lab/Users/mhe/Global_{year}_burnin"
     months = [i for i in range(1, 13)]
     emis_files = [f'{data_dir}/hemco_prior_emis/OutputDir/HEMCO_sa_diagnostics.{year}{m:02d}010000.nc'
                 for m in months] # list of emissions for first day in each month
