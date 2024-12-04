@@ -33,9 +33,15 @@ def calc_sectoral_trend(sector_name, year_list, oil_gas=False, wastewater_landfi
     ]
 
     # Take average of differences
-    avg_diffs = sum(diff_list) / (len(year_list)-1) # kg
+    avg_diffs = sum(diff_list) / (len(year_list)-1) # Tg
 
-    return avg_diffs
+    # Set 0's to NaNs. then calculate percent difference between latest year and first year
+    last_year = trend_list[-1].where(trend_list[0] != 0, np.nan)
+    first_year = trend_list[0].where(trend_list[0] != 0, np.nan)
+
+    diff_percent = (last_year - first_year)/first_year * 100
+
+    return avg_diffs, diff_percent
 
 def plot_range(vals):
 
@@ -51,11 +57,11 @@ if __name__ == "__main__":
     invdir = f"/n/netscratch/jacob_lab/Lab/mhe"
     years = [2019, 2020, 2021]
 
-    sector = "Livestock"
+    sector = "Wetlands"
     oil_gas = True if sector == "OG" else False
     wastewater_landfills = True if sector == "Wastewater_Landfills_OtherAnth" else False # combine due to low ability of inversion to separate these sectors
 
-    posterior_sector = calc_sectoral_trend(sector, years, oil_gas, wastewater_landfills)
+    posterior_sector_absolute, posterior_sector_percent = calc_sectoral_trend(sector, years, oil_gas, wastewater_landfills)
 
     # Load state vector
     state_vector = xr.load_dataset(f"{invdir}/Global_2019_annual_edgarv7/StateVector.nc")
@@ -66,23 +72,38 @@ if __name__ == "__main__":
     mask = state_vector_labels <= last_ROI_element
 
     # Plot posterior emissions
-    fig = plt.figure(figsize=(8, 8))
+    fig = plt.figure(figsize=(24, 8))
     plt.rcParams.update({"font.size": 16})
-    ax = fig.subplots(1, 1, subplot_kw={"projection": ccrs.PlateCarree()})
+    ax1, ax2 = fig.subplots(1, 2, subplot_kw={"projection": ccrs.PlateCarree()})
 
-    min_trend, max_trend = plot_range(posterior_sector)
     plot_save_path = "sectoral_trend_plots"
 
     plot_field(
-        ax,
-        posterior_sector,
+        ax1,
+        posterior_sector_absolute,
         cmap='RdBu_r',
         lon_bounds=[-170, 167.5],
         lat_bounds=[-60, 80],
         vmin=-0.3,
         vmax=0.3,
-        title=f"Posterior {sector.lower()} trend {years[0]}-{years[-1]}",
-        cbar_label="Emissions trend (Tg/a)",
+        title=f"Absolute {sector.lower()} trend {years[0]}-{years[-1]}",
+        cbar_label="Tg/a",
+        only_ROI=True,
+        state_vector_labels=state_vector_labels,
+        last_ROI_element=last_ROI_element,
+        is_regional=False,
+    )
+
+    plot_field(
+        ax2,
+        posterior_sector_percent,
+        cmap='RdBu_r',
+        lon_bounds=[-170, 167.5],
+        lat_bounds=[-60, 80],
+        vmin=-200,
+        vmax=200,
+        title=f"Relative {sector.lower()} trend {years[0]}-{years[-1]}",
+        cbar_label="%",
         only_ROI=True,
         state_vector_labels=state_vector_labels,
         last_ROI_element=last_ROI_element,
