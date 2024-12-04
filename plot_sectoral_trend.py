@@ -13,7 +13,7 @@ def calc_sectoral_trend(sector_name, year_list, oil_gas=False, wastewater_landfi
     # Load posterior datasets for each year
     for year in year_list:
         if year == 2019:
-            posterior_ds = xr.load_dataset(f"{invdir}/Global_{year}_annual_edgarv7/inversion/posterior_ds.nc")
+            posterior_ds = xr.load_dataset(f"/n/holylfs05/LABS/jacob_lab/Users/mhe/Global_{year}_burnin/inversion/posterior_ds.nc")
         else:
             posterior_ds = xr.load_dataset(f"{invdir}/Global_{year}_annual/inversion/posterior_ds.nc")
         
@@ -48,10 +48,10 @@ def plot_range(vals):
 
 if __name__ == "__main__":
 
-    invdir = f"/n/holyscratch01/jacob_lab/mhe"
+    invdir = f"/n/netscratch/jacob_lab/Lab/mhe"
     years = [2019, 2020, 2021]
 
-    sector = "Wastewater_Landfills_OtherAnth"
+    sector = "Livestock"
     oil_gas = True if sector == "OG" else False
     wastewater_landfills = True if sector == "Wastewater_Landfills_OtherAnth" else False # combine due to low ability of inversion to separate these sectors
 
