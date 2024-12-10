@@ -26,6 +26,11 @@ def calc_sectoral_trend(sector_name, year_list, oil_gas=False, wastewater_landfi
         trend_list.append(posterior_sectoral)
         areas.append(posterior_ds["AREA"])
 
+    trend_list_Tg_y = [
+        trend_list[i] * areas[i] * 86400 * 365 * 1e-9 # convert to Tg/y
+        for i in range(len(trend_list) - 1)
+    ]
+
     # Calculate year-to-year differences
     diff_list = [
         (trend_list[i+1] - trend_list[i]) * areas[i] * 86400 * 365 * 1e-9 # convert to Tg/y
@@ -35,9 +40,9 @@ def calc_sectoral_trend(sector_name, year_list, oil_gas=False, wastewater_landfi
     # Take average of differences
     avg_diffs = sum(diff_list) / (len(year_list)-1) # Tg
 
-    # Set 0's to NaNs. then calculate percent difference between latest year and first year
-    last_year = trend_list[-1].where(trend_list[0] != 0, np.nan)
-    first_year = trend_list[0].where(trend_list[0] != 0, np.nan)
+    # Set very small values to NaNs. then calculate percent difference between latest year and first year
+    last_year = trend_list_Tg_y[-1].where(trend_list_Tg_y[-1] > 0.001, np.nan) # a bit arbitrary threshold to make visualization look better
+    first_year = trend_list_Tg_y[0].where(trend_list_Tg_y[0] > 0.001, np.nan)
 
     diff_percent = (last_year - first_year)/first_year * 100
 
@@ -54,8 +59,8 @@ def plot_range(vals):
 
 if __name__ == "__main__":
 
-    invdir = f"/n/netscratch/jacob_lab/Lab/mhe"
-    years = [2019, 2020, 2021]
+    invdir = f"/n/holylfs06/LABS/jacob_lab2/Lab/mhe"
+    years = [2019, 2020, 2021, 2022]
 
     sector = "Wetlands"
     oil_gas = True if sector == "OG" else False
@@ -64,7 +69,7 @@ if __name__ == "__main__":
     posterior_sector_absolute, posterior_sector_percent = calc_sectoral_trend(sector, years, oil_gas, wastewater_landfills)
 
     # Load state vector
-    state_vector = xr.load_dataset(f"{invdir}/Global_2019_annual_edgarv7/StateVector.nc")
+    state_vector = xr.load_dataset(f"{invdir}/Global_2020_annual/StateVector.nc")
     state_vector_labels = state_vector["StateVector"]
     last_ROI_element = int(
         np.nanmax(state_vector_labels.values) - 0
@@ -100,8 +105,8 @@ if __name__ == "__main__":
         cmap='RdBu_r',
         lon_bounds=[-170, 167.5],
         lat_bounds=[-60, 80],
-        vmin=-200,
-        vmax=200,
+        vmin=-100,
+        vmax=100,
         title=f"Relative {sector.lower()} trend {years[0]}-{years[-1]}",
         cbar_label="%",
         only_ROI=True,
