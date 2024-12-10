@@ -107,25 +107,27 @@ def grid_shape_overlap(clusters, x, y, name=None):
 
     return mask
 
-def aggregate_matrix(statevector, emissions, n_elements, include_oh=True):
+def aggregate_matrix(statevector, emissions, n_elements):
     '''
     Aggregate all emissions, aggregate global OH, and generate W matrix
     '''
     cols = ['Emissions', 'OH']
-    W_withOH = pd.DataFrame(0, index=range(n_elements + 2), columns=cols)
+    W_agg = pd.DataFrame(0, index=range(n_elements + 2), columns=cols)
+
+    emissions_copy = emissions.copy()
 
     # Fill first column with prior emissions
-    emis = emissions['EmisCH4_Total'].squeeze()
-    emis *= emissions['AREA']
+    emis_copy = emissions_copy['EmisCH4_Total'].squeeze()
+    emis_copy *= emissions_copy['AREA']
 
-    emis = clusters_2d_to_1d(statevector, emis)
+    emis_copy = clusters_2d_to_1d(statevector, emis_copy)
 
-    W_withOH['Emissions'][:len(emis)] = emis
+    W_agg['Emissions'][:len(emis_copy)] = emis_copy
 
     # Fill second column with 1 (OH prior) in last two rows. Everywhere else is 0 by default
-    W_withOH['OH'].iloc[-2:] = 1
+    W_agg['OH'].iloc[-2:] = 1
 
-    return W_withOH
+    return W_agg
 
 
 def sectoral_matrix(statevector, emissions, n_elements, include_oh=False):
@@ -167,7 +169,7 @@ def regional_matrix(statevector, emissions, n_elements, regions, w_mask, include
             x = [i[0] for i in shape.shape.points[:]]
             y = [i[1] for i in shape.shape.points[:]]
             # populate with fractional overlaps for grid cells in statevector that overlap with polygon of region boundaries
-            w_mask[shape.record[1]] = grid_shape_overlap(statevector, x, y, shape.record[1]) 
+            w_mask[shape.record[1]] = grid_shape_overlap(statevector, x, y, shape.record[1])
 
     for r in w_mask.columns:
         emis = emissions['EmisCH4_Total'].squeeze() * emissions['AREA']
@@ -301,7 +303,7 @@ def plot_correlation(w_matrix, name=None):
         ax.set_xlabel('Global emissions')
         ax.set_ylabel('Global OH')
         plt.tight_layout()
-        plt.savefig(f'error_corr_{year}_{name}_ellipse.png')
+        plt.savefig(f'error_corr_plots/error_corr_{year}_{name}_ellipse.png')
 
     # Plot posterior error correlation matrix
     fig = plt.figure(figsize=(8, 8))
@@ -317,16 +319,16 @@ def plot_correlation(w_matrix, name=None):
     cbar.ax.tick_params()
     plt.tight_layout()
 
-    plt.savefig(f'error_corr_{year}_{name}.png')
+    plt.savefig(f'error_corr_plots/error_corr_{year}_{name}.png')
 
 if __name__ == "__main__":
 
-    year = 2021
+    year = 2022
     start_date = f"{year}0101"
     end_date = f"{int(year)+1}0101"
     shapefile_path = "shapefiles/merged.shp" # the merged shapefile is created using make_shapefiles.py
 
-    data_dir = f"/n/netscratch/jacob_lab/Lab/mhe/Global_{year}_annual"
+    data_dir = f"/n/holylfs06/LABS/jacob_lab2/Lab/mhe/Global_{year}_annual"
     # data_dir = f"/n/holylfs05/LABS/jacob_lab/Users/mhe/Global_{year}_burnin"
     months = [i for i in range(1, 13)]
     emis_files = [f'{data_dir}/hemco_prior_emis/OutputDir/HEMCO_sa_diagnostics.{year}{m:02d}010000.nc'
@@ -346,11 +348,10 @@ if __name__ == "__main__":
 
     # Save annual mean W sectoral matrix
     include_oh = True
-    w_aggregate = aggregate_matrix(sv, ds, n_elements, include_oh)
     w_sectoral = sectoral_matrix(sv, ds, n_elements, include_oh)
     w_total = w_sectoral.to_numpy().sum() * 86400 * 365 * 1e-9
     print(f"Total from sectoral W matrix: {w_total:.2f} Tg/yr") # this should be slightly lower than the total prior from above?
-    w_sectoral.to_csv(f'{data_dir}/w_{year}_annual_sectors.csv', index=False)
+    # w_sectoral.to_csv(f'{data_dir}/w_{year}_annual_sectors.csv', index=False)
 
     # Save annual mean W regional matrix
     regions = shapefile.Reader(shapefile_path, encoding='windows-1252')
@@ -358,8 +359,14 @@ if __name__ == "__main__":
     w_regions_mask = pd.DataFrame(columns=unique_regions)
     w_regional = regional_matrix(sv, ds, n_elements, regions, w_regions_mask, include_oh)
     w_regional.to_csv(f'{data_dir}/w_{year}_annual_regions.csv', index=False)
-    w_total = w_regional.to_numpy().sum() * 86400 * 365 * 1e-9
+    if include_oh:
+        w_total = w_regional.iloc[:-2,:-2].to_numpy().sum() * 86400 *365 * 1e-9
+    else:
+        w_total = w_regional.to_numpy().sum() * 86400 *365 * 1e-9
     print(f"Total from regional W matrix: {w_total:.2f} Tg/yr")
+
+    # Construct global emissions and OH aggregate matrix (TODO: bug in aggregate_matrix that inflates values if this is called before regional_matrix)
+    w_aggregate = aggregate_matrix(sv, ds, n_elements)
 
     # Plot
     plot_correlation(w_sectoral, name='sectoral')
