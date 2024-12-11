@@ -133,7 +133,7 @@ def aggregate_matrix(statevector, emissions, n_elements):
     return W_agg
 
 
-def sectoral_matrix(statevector, emissions, n_elements, include_oh=False):
+def sectoral_matrix(statevector, emissions, n_elements, include_oh=False, include_BCs=False):
     '''
     Group emissions by sector and generate W matrix
     '''
@@ -147,18 +147,48 @@ def sectoral_matrix(statevector, emissions, n_elements, include_oh=False):
         emis = clusters_2d_to_1d(statevector, emis)
 
         W[s] = emis
+    
+    print(f"W shape: {W.values.shape}")
 
     if include_oh:
         W_withOH = pd.DataFrame(0, index=range(n_elements + 2), columns=range(len(sectors) + 2))
         W_withOH.iloc[:n_elements, :len(sectors)] = W # populate with emissions W
 
         # Set the last two diagonal elements to 1 for hemispheric OH (because prior scaling factor is 1)
-        W_withOH.iloc[4111, len(sectors)] = 1  # N. Hemisphere OH
-        W_withOH.iloc[4112, len(sectors)+1] = 1  # S. Hemisphere OH
+        for i in range(0,2):
+            W_withOH.iloc[W.shape[0] + i, W.shape[1] + i] = 1
 
         W_withOH.columns = list(W.columns) + ["NH OH", "SH OH"]
 
         return W_withOH
+    
+    elif include_BCs:
+        # Ensure n_elements matches the number of rows in W
+        if W.shape[0] != n_elements:
+            raise ValueError(f"Mismatch: W has {W.shape[0]} rows but n_elements is {n_elements}")
+
+        # Create W_withBCs with enough rows and columns
+        n_extra = 4  # Number of extra rows/columns for BCs
+        W_withBCs = pd.DataFrame(0, index=range(W.shape[0] + n_extra), columns=range(W.shape[1] + n_extra))
+        
+        print(f"W_withBCs shape: {W_withBCs.shape}")  # Debugging
+        print(f"W shape: {W.shape}")                 # Debugging
+
+        # Populate with emissions W
+        W_withBCs.iloc[:W.shape[0], :W.shape[1]] = W.values  # Use .values for compatibility
+
+        # Set the last four diagonal elements to 1
+        start_index = W.shape[0]  # Start index for the new diagonal elements
+        for i in range(0,4):
+            print(i)
+            W_withBCs.iloc[start_index+i, W.shape[1] + i] = 1  # Ensure we're assigning within bounds
+
+        # Add BC labels to the columns
+        W_withBCs.columns = list(W.columns) + ["BC N", "BC S", "BC E", "BC W"]
+
+        return W_withBCs
+
+            
     else: 
         return W
 
