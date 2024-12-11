@@ -41,6 +41,9 @@ def clusters_2d_to_1d(clusters, data, fill_value=0):
     # Fill nans that may result from data and clusters being different
     # shapes
     data = data.fillna(fill_value)
+    
+    # Aggregate values by cluster number
+    data = data.groupby('clusters').sum()
 
     # Sort
     data = data.sort_values(by='clusters')
@@ -261,27 +264,19 @@ def plot_correlation(w_matrix, name=None):
     mean = [0, 0]
 
     def plot_ellipse(corr_matrix, mean, ax, n_std=2.0, **kwargs):
-        """
+        '''
         Plot a confidence ellipse based on a Pearson correlation matrix.
-        
-        Args:
-            corr_matrix (2x2 array): Pearson correlation matrix
-            mean (list): [x_mean, y_mean]
-            ax (matplotlib.axes.Axes): Axes to plot the ellipse
-            n_std (float): Number of standard deviations
-            **kwargs: Additional keyword arguments for the ellipse
-        """
+        '''
 
-        # Eigenvalues and eigenvectors for the correlation matrix
+        # compute eigenvalues and eigenvectors
         eigenvalues, eigenvectors = np.linalg.eigh(corr_matrix)
         order = eigenvalues.argsort()[::-1]
         eigenvalues, eigenvectors = eigenvalues[order], eigenvectors[:, order]
 
-        # Compute the ellipse angle and dimensions
+        # compute the ellipse angle and dimensions
         angle = np.degrees(np.arctan2(*eigenvectors[:, 0][::-1]))
         width, height = n_std * np.sqrt(eigenvalues)
 
-        # Create the ellipse
         ellipse = Ellipse(xy=mean, width=width, height=height, angle=angle, **kwargs)
         ax.add_patch(ellipse)
         ellipse.set_edgecolor('red')
