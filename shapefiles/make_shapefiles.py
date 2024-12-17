@@ -18,7 +18,7 @@ japan_koreas = ['Japan', 'South Korea', 'North Korea']
 india_pakistan = ['India', 'Pakistan']
 
 # load state vector
-sv_path = "~/mhe/Global_2019_annual/StateVector.nc"
+sv_path = "/n/holylfs06/LABS/jacob_lab2/Lab/mhe/Global_2023_annual/StateVector.nc"
 sv = xr.load_dataset(sv_path)
 
 # make geodataframe of the state vector elements
