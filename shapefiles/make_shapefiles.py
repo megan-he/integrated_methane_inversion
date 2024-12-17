@@ -5,6 +5,7 @@ import pandas as pd
 import geopandas as gpd
 import matplotlib.pyplot as plt
 from shapely.geometry import Polygon
+from shapely.geometry import box
 import cartopy.crs as ccrs
 
 # define regions
@@ -65,14 +66,23 @@ for c in continents:
     gdf_region.to_file(f"regions/{c.lower()}.shp")
     print(f"Saved {c}")
 
+# generous bounding box
+x1, y1, x2, y2 = (-130, 20, -50, 50)
+bbox_conus = box(x1, y1, x2, y2)
 # replace continent column with individual country name for China, Canada, US, Russia
 for c in indiv_countries:
     gdf_region = gdf_world_crs[gdf_world['name'] == c]
     gdf_region.loc[gdf_region['name'].isin(indiv_countries), 'continent'] = c
-    # save all necessary shapefiles
-    c = c.replace(' ', '-')
-    gdf_region.to_file(f"regions/{c.lower()}.shp")
-    print(f"Saved {c}")
+    if c == "United States of America":
+        gdf_region = gdf_region.explode(index_parts=False)
+        gdf_conus = gdf_region[gdf_region.centroid.within(bbox_conus)]
+        gdf_conus.to_file(f"regions/conus.shp")
+        print("Saved CONUS")
+    else:
+        # save all necessary shapefiles
+        c = c.replace(' ', '-')
+        gdf_region.to_file(f"regions/{c.lower()}.shp")
+        print(f"Saved {c}")
 
 # replace continent column for Japan, S Korea, N Korea
 # replace continent column for India, Pakistan
