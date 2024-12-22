@@ -115,7 +115,9 @@ def aggregate_matrix(statevector, emissions, n_elements):
     Aggregate all emissions, aggregate global OH, and generate W matrix
     '''
     cols = ['Emissions', 'OH']
-    W_agg = pd.DataFrame(0, index=range(n_elements + 2), columns=cols)
+    W_agg = pd.DataFrame(0, index=range(n_elements + 2), columns=cols) # for global OH
+    W_agg_NH = pd.DataFrame(0, index=range(n_elements + 1), columns=['Emissions', 'NH OH'])  # for NH OH
+    W_agg_SH = pd.DataFrame(0, index=range(n_elements + 1), columns=['Emissions', 'SH OH'])  # for SH OH
 
     emissions_copy = emissions.copy()
 
@@ -126,11 +128,16 @@ def aggregate_matrix(statevector, emissions, n_elements):
     emis_copy = clusters_2d_to_1d(statevector, emis_copy)
 
     W_agg['Emissions'][:len(emis_copy)] = emis_copy
+    W_agg_NH['Emissions'][:len(emis_copy)] = emis_copy
+    W_agg_SH['Emissions'][:len(emis_copy)] = emis_copy
 
     # Fill second column with 1 (OH prior) in last two rows. Everywhere else is 0 by default
     W_agg['OH'].iloc[-2:] = 1
+    # For hemispheric OH, set last row to 1
+    W_agg_NH['NH OH'].iloc[-1] = 1
+    W_agg_SH['SH OH'].iloc[-1] = 1
 
-    return W_agg
+    return W_agg, W_agg_NH, W_agg_SH
 
 
 def sectoral_matrix(statevector, emissions, n_elements, include_oh=False, include_BCs=False):
@@ -209,7 +216,7 @@ def regional_matrix(statevector, emissions, n_elements, regions, w_mask, include
         emis = clusters_2d_to_1d(statevector, emis)
         w_mask[r] *= emis
 
-    w_mask = w_mask.rename(columns={'United States of America': 'USA'})
+    w_mask = w_mask.rename(columns={'United States of America': 'CONUS'})
 
     if include_oh:
         W_withOH = pd.DataFrame(0, index=range(n_elements + 2), columns=range(len(w_mask.columns) + 2))
@@ -283,12 +290,28 @@ def plot_correlation(w_matrix, name=None):
 
     w = w_matrix.T
     inversion_result = xr.load_dataset(f'{data_dir}/inversion/inversion_result.nc')
-    # Includes emission elements and OH elements
-    xhat_emissions = inversion_result["xhat"]
-    S_post = inversion_result["S_post"]
-    A = inversion_result["A"]
 
-    _, _, pearson, A_red = source_attribution(w, xhat_emissions, S_post, A)
+    if name == "aggregate":
+        # Includes emission elements and OH elements
+        xhat = inversion_result["xhat"]
+        S_post = inversion_result["S_post"]
+        A = inversion_result["A"]
+    
+    elif name == "NH":
+        # Include only NH OH element
+        xhat = inversion_result["xhat"][:-1]
+        S_post = inversion_result["S_post"][:-1, :-1]
+        A = inversion_result["A"][:-1, :-1]
+
+    elif name == "SH":
+        # Include only SH OH element
+        xhat = np.concatenate((inversion_result["xhat"][:-2], inversion_result["xhat"][-1:]))
+        S_post_temp = inversion_result["S_post"]
+        S_post = np.delete(np.delete(S_post_temp, -2, axis=0), -2, axis=1)
+        A_temp = inversion_result["A"]
+        A = np.delete(np.delete(A_temp, -2, axis=0), -2, axis=1)
+
+    _, _, pearson, a_red = source_attribution(w, xhat, S_post, A)
     cols = pearson.columns.tolist()
 
     mean = [0, 0]
@@ -329,6 +352,42 @@ def plot_correlation(w_matrix, name=None):
         ax.set_ylabel('Global OH')
         plt.tight_layout()
         plt.savefig(f'error_corr_plots/error_corr_{year}_{name}_ellipse.png')
+
+    elif name == 'NH':
+        # Plot ellipse
+        fig = plt.figure(figsize=(8, 8))
+        plt.rcParams.update({"font.size": 16})
+        ax = fig.add_subplot(111)
+
+        print(f"Pearson's coefficient b/w emissions and NH OH = {pearson['NH OH'][0]:.2f}")
+        
+        plot_ellipse(pearson, mean, ax, edgecolor='red')
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_xlim(-1.25, 1.25)
+        ax.set_ylim(-1.25, 1.25)
+        ax.set_xlabel('Global emissions')
+        ax.set_ylabel('Global OH')
+        plt.tight_layout()
+        plt.savefig(f'error_corr_plots/error_corr_{year}_{name}_ellipse_NH.png')
+
+    elif name == 'SH':
+        # Plot ellipse
+        fig = plt.figure(figsize=(8, 8))
+        plt.rcParams.update({"font.size": 16})
+        ax = fig.add_subplot(111)
+
+        print(f"Pearson's coefficient b/w emissions and SH OH = {pearson['SH OH'][0]:.2f}")
+        
+        plot_ellipse(pearson, mean, ax, edgecolor='red')
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_xlim(-1.25, 1.25)
+        ax.set_ylim(-1.25, 1.25)
+        ax.set_xlabel('Global emissions')
+        ax.set_ylabel('Global OH')
+        plt.tight_layout()
+        plt.savefig(f'error_corr_plots/error_corr_{year}_{name}_ellipse_SH.png')
 
     # Plot posterior error correlation matrix
     fig = plt.figure(figsize=(8, 8))
@@ -391,12 +450,14 @@ if __name__ == "__main__":
     print(f"Total from regional W matrix: {w_total:.2f} Tg/yr")
 
     # Construct global emissions and OH aggregate matrix (TODO: bug in aggregate_matrix that inflates values if this is called before regional_matrix)
-    w_aggregate = aggregate_matrix(sv, ds, n_elements)
+    w_aggregate, w_aggregate_NH, w_aggregate_SH = aggregate_matrix(sv, ds, n_elements)
 
     # Plot
     plot_correlation(w_sectoral, name='sectoral')
     plot_correlation(w_regional, name='regional')
     plot_correlation(w_aggregate, name='aggregate')
+    plot_correlation(w_aggregate_NH, name='NH')
+    plot_correlation(w_aggregate_SH, name='SH')
 
     # Print OH statistics
     xhat_OH, S_post_OH, A_OH = analyze_OH(data_dir)
