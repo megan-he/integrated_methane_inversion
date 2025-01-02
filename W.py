@@ -290,14 +290,8 @@ def plot_correlation(w_matrix, name=None):
 
     w = w_matrix.T
     inversion_result = xr.load_dataset(f'{data_dir}/inversion/inversion_result.nc')
-
-    if name == "aggregate":
-        # Includes emission elements and OH elements
-        xhat = inversion_result["xhat"]
-        S_post = inversion_result["S_post"]
-        A = inversion_result["A"]
     
-    elif name == "NH":
+    if name == "NH":
         # Include only NH OH element
         xhat = inversion_result["xhat"][:-1]
         S_post = inversion_result["S_post"][:-1, :-1]
@@ -310,6 +304,12 @@ def plot_correlation(w_matrix, name=None):
         S_post = np.delete(np.delete(S_post_temp, -2, axis=0), -2, axis=1)
         A_temp = inversion_result["A"]
         A = np.delete(np.delete(A_temp, -2, axis=0), -2, axis=1)
+
+    else:
+        # Includes emission elements and OH elements
+        xhat = inversion_result["xhat"]
+        S_post = inversion_result["S_post"]
+        A = inversion_result["A"]
 
     _, _, pearson, a_red = source_attribution(w, xhat, S_post, A)
     cols = pearson.columns.tolist()
@@ -367,9 +367,9 @@ def plot_correlation(w_matrix, name=None):
         ax.set_xlim(-1.25, 1.25)
         ax.set_ylim(-1.25, 1.25)
         ax.set_xlabel('Global emissions')
-        ax.set_ylabel('Global OH')
+        ax.set_ylabel('NH OH')
         plt.tight_layout()
-        plt.savefig(f'error_corr_plots/error_corr_{year}_{name}_ellipse_NH.png')
+        plt.savefig(f'error_corr_plots/error_corr_{year}_{name}_ellipse.png')
 
     elif name == 'SH':
         # Plot ellipse
@@ -385,9 +385,9 @@ def plot_correlation(w_matrix, name=None):
         ax.set_xlim(-1.25, 1.25)
         ax.set_ylim(-1.25, 1.25)
         ax.set_xlabel('Global emissions')
-        ax.set_ylabel('Global OH')
+        ax.set_ylabel('SH OH')
         plt.tight_layout()
-        plt.savefig(f'error_corr_plots/error_corr_{year}_{name}_ellipse_SH.png')
+        plt.savefig(f'error_corr_plots/error_corr_{year}_{name}_ellipse.png')
 
     # Plot posterior error correlation matrix
     fig = plt.figure(figsize=(8, 8))
@@ -407,13 +407,13 @@ def plot_correlation(w_matrix, name=None):
 
 if __name__ == "__main__":
 
-    year = 2022
+    year = 2019
     start_date = f"{year}0101"
     end_date = f"{int(year)+1}0101"
     shapefile_path = "shapefiles/merged.shp" # the merged shapefile is created using make_shapefiles.py
 
-    data_dir = f"/n/holylfs06/LABS/jacob_lab2/Lab/mhe/Global_{year}_annual"
-    # data_dir = f"/n/holylfs05/LABS/jacob_lab/Users/mhe/Global_{year}_burnin"
+    # data_dir = f"/n/holylfs06/LABS/jacob_lab2/Lab/mhe/Global_{year}_annual"
+    data_dir = f"/n/holylfs05/LABS/jacob_lab/Users/mhe/Global_{year}_burnin"
     months = [i for i in range(1, 13)]
     emis_files = [f'{data_dir}/hemco_prior_emis/OutputDir/HEMCO_sa_diagnostics.{year}{m:02d}010000.nc'
                 for m in months] # list of emissions for first day in each month
