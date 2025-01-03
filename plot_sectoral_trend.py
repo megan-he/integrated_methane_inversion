@@ -48,19 +48,11 @@ def calc_sectoral_trend(sector_name, year_list, oil_gas=False, wastewater_landfi
 
     return avg_diffs, diff_percent
 
-def plot_range(vals):
-
-    data_range = np.nanmax(vals) - np.nanmin(vals)
-    plot_max = np.nanmax(vals) - 0.1*data_range
-    plot_min = -plot_max
-
-    return plot_min, plot_max
-
 
 if __name__ == "__main__":
 
     invdir = f"/n/holylfs06/LABS/jacob_lab2/Lab/mhe"
-    years = [2019, 2020, 2021, 2022]
+    years = [2019, 2020, 2021, 2022, 2023]
 
     sector = "Wetlands"
     oil_gas = True if sector == "OG" else False

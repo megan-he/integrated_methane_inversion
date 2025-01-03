@@ -37,13 +37,13 @@ def calc_regional_trend(year_list):
 
 if __name__ == "__main__":
 
-    invdir = f"/n/netscratch/jacob_lab/Lab/mhe"
-    years = [2019, 2020, 2021]
+    invdir = f"/n/holylfs06/LABS/jacob_lab2/Lab/mhe"
+    years = [2019, 2020, 2021, 2022, 2023]
 
     posterior_sector_absolute, posterior_sector_percent = calc_regional_trend(years)
 
     # Load state vector
-    state_vector = xr.load_dataset(f"{invdir}/Global_2019_annual_edgarv7/StateVector.nc")
+    state_vector = xr.load_dataset(f"{invdir}/Global_2020_annual/StateVector.nc")
     state_vector_labels = state_vector["StateVector"]
     last_ROI_element = int(
         np.nanmax(state_vector_labels.values) - 0
