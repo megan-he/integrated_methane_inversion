@@ -407,13 +407,13 @@ def plot_correlation(w_matrix, name=None):
 
 if __name__ == "__main__":
 
-    year = 2019
+    year = 2023
     start_date = f"{year}0101"
     end_date = f"{int(year)+1}0101"
     shapefile_path = "shapefiles/merged.shp" # the merged shapefile is created using make_shapefiles.py
 
-    # data_dir = f"/n/holylfs06/LABS/jacob_lab2/Lab/mhe/Global_{year}_annual"
-    data_dir = f"/n/holylfs05/LABS/jacob_lab/Users/mhe/Global_{year}_burnin"
+    data_dir = f"/n/holylfs06/LABS/jacob_lab2/Lab/mhe/Global_{year}_annual"
+    # data_dir = f"/n/holylfs05/LABS/jacob_lab/Users/mhe/Global_{year}_burnin"
     months = [i for i in range(1, 13)]
     emis_files = [f'{data_dir}/hemco_prior_emis/OutputDir/HEMCO_sa_diagnostics.{year}{m:02d}010000.nc'
                 for m in months] # list of emissions for first day in each month
