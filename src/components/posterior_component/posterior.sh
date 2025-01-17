@@ -33,7 +33,7 @@ setup_posterior() {
     ln -s ../GEOSChem_build/gcclassic .
 
     # Link to restart file
-    RestartFileFromSpinup=${RunDirs}/spinup_run/Restarts/GEOSChem.Restart.${SpinupEnd}_0000z.nc4
+    # RestartFileFromSpinup=${RunDirs}/spinup_run/Restarts/GEOSChem.Restart.${SpinupEnd}_0000z.nc4
     if test -f "$RestartFileFromSpinup" || "$DoSpinup"; then
         ln -s $RestartFileFromSpinup Restarts/GEOSChem.Restart.${StartDate}_0000z.nc4
     else
@@ -148,7 +148,8 @@ run_posterior() {
             printf "OH optimized perturbation value set to: ${PerturbOHValue}\n"
 	    else
             # Apply hemispheric OH perturbation values using mask file
-            oh_sfs=($PerturbOHValue)
+            # oh_sfs=($PerturbOHValue)
+            oh_sfs=(0.90411225	0.969987556)
             cp Perturbations.txt PerturbationsOH.txt
             sed -i -e "s|CH4_STATE_VECTOR|HEMIS_MASK|g" PerturbationsOH.txt
             OHPertPrevLine='DEFAULT    0     1.0'
@@ -162,7 +163,9 @@ run_posterior() {
             HcoPrevLineMask='CH4_STATE_VECTOR'
             HcoNextLineMask='* HEMIS_MASK $ROOT\/MASKS\/v2024-08\/hemisphere_mask.01x01.nc Hemisphere 2000\/1\/1\/0 C xy 1 * - 1 1 
 '
-            sed -i "/${HcoPrevLineMask}/a ${HcoNextLineMask}" HEMCO_Config.rc
+            if ! grep -q "HEMIS_MASK" HEMCO_Config.rc; then
+                sed -i "/${HcoPrevLineMask}/a ${HcoNextLineMask}" HEMCO_Config.rc
+            fi
 
             printf "OH optimized perturbation values set to:\n"
             printf " ${oh_sfs[0]} for Northern Hemisphere\n"
@@ -195,7 +198,8 @@ run_posterior() {
         StartDate_i=$StartDate
         EndDate_i=$EndDate
         cd ${RunDirs}/inversion
-        PrevDir="${RunDirs}/spinup_run"
+        # PrevDir="${RunDirs}/spinup_run"
+        PrevDir="/n/holylfs06/LABS/jacob_lab2/Lab/mhe/Global_2022_annual/posterior_run"
     fi
 
     # Fill missing data (first hour of simulation) in posterior output
