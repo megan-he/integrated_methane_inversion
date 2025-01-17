@@ -182,10 +182,10 @@ def plot_field(
         states_provinces_50m = cartopy.feature.NaturalEarthFeature(
             "cultural", "admin_1_states_provinces_lines", "50m"
         )
-        ax.add_feature(cartopy.feature.BORDERS, facecolor="none")
-        ax.add_feature(oceans_50m, facecolor="none", edgecolor="black")
-        ax.add_feature(lakes_50m, facecolor="none", edgecolor="black")
-        ax.add_feature(states_provinces_50m, facecolor="none", edgecolor="black")
+        ax.add_feature(cartopy.feature.BORDERS, facecolor="none", linewidth=0.4)
+        ax.add_feature(oceans_50m, facecolor="none", edgecolor="black", linewidth=0.5)
+        # ax.add_feature(lakes_50m, facecolor="none", edgecolor="black")
+        # ax.add_feature(states_provinces_50m, facecolor="none", edgecolor="black")
     else:
         ax.coastlines(resolution="110m")
 
@@ -201,7 +201,7 @@ def plot_field(
             ax=ax,
             vmin=vmin,
             vmax=vmax,
-            cbar_kwargs={"label": cbar_label, "fraction": 0.041, "pad": 0.04},
+            cbar_kwargs={"label": cbar_label, "fraction": 0.03, "pad": 0.04},
         )
     elif plot_type == "imshow":
         field.plot.imshow(
