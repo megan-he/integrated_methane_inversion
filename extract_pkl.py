@@ -1,96 +1,124 @@
 import numpy as np
-import xarray as xr
-import glob
 import os
 import pandas as pd
 import re
 import sys
 from src.inversion_scripts.utils import load_obj
 
+def extract(satdat_dir, save_path, year, is_data_converted):
+    '''
+    Extracts parameters from inversion/ folders into a npz file (one per parameter).
 
-'''
-Extract IMI output (.pkl) across full inversion year.
-Data is saved as npz
-'''
+    Args:
+    - satdat_dir: path to input inversion data
+    - save_path: path to save extracted data
+    - year: year of inversion
+    - is_data_converted: are we processing "data_converted"?
+    '''
 
-mode = sys.argv[1]
+    # Get observed and GEOS-Chem-simulated TROPOMI columns
+    files = [f for f in np.sort(os.listdir(satdat_dir)) if "TROPOMI" in f]
+    print(f"Processing {'data_converted' if is_data_converted else 'data_visualization'} for {year}")
+    print(f"Number of pkl files: {len(files)}")
+    
+    lat = np.array([])
+    lon = np.array([])
+    tropomi = np.array([])
+    geos_prior = np.array([])
+    obs_count = np.array([])
+    time = []
 
-if mode == "data_viz":
-    satdat_dir = "/n/holylfs06/LABS/jacob_lab2/Lab/mhe/Global_2020_annual/inversion/data_visualization/"
-    save_path = "/n/holylfs05/LABS/jacob_lab/Users/mhe/Global_2020_annual/data_viz_extracted_fullyear/"
-elif mode == "data_converted":
-    satdat_dir = "/n/holylfs06/LABS/jacob_lab2/Lab/mhe/Global_2020_annual/inversion/data_converted/"
-    save_path = "/n/holylfs05/LABS/jacob_lab/Users/mhe/Global_2020_annual/data_converted_extracted_fullyear/"
-else:
-    print(f"Error. Specify 'data_viz' or 'data_converted'.")
-    sys.exit(1)
+    # Exclude problematic date range if 2022 or 2023
+    if year == 2022:
+        date_range = pd.date_range(start='2022-07-25', end='2022-08-24')
+    elif year == 2023:
+        date_range = pd.date_range(start='2023-07-25', end='2023-09-01')
 
-# Get observed and GEOS-Chem-simulated TROPOMI columns
-files = [f for f in np.sort(os.listdir(satdat_dir)) if "TROPOMI" in f]
-print(f"Number of pkl files: {len(files)}")
-lat = np.array([])
-lon = np.array([])
-tropomi = np.array([])
-geos_prior = np.array([])
-obs_count = np.array([])
-# iSat = np.array([])
-# jSat = np.array([])
-time = []
+    for i, f in enumerate(files):
+        # get date from filename
+        starttime = re.search(r"(\d{8})", f).group(1)  # Grab the start time
+        starttime_dt = pd.to_datetime(starttime, format='%Y%m%d')
 
+        if year in [2022, 2023] and starttime_dt in date_range:
+            print(f"Skipping file due to problematic date range: {f}")
+            continue
 
-for i, f in enumerate(files):
-    # grab start and end date/time from filename
-    starttime = re.search(r"(\d{8})", f).group(1) # grab the start time (first consecutive 8 digits)
-    starttime_dt = pd.to_datetime(starttime, format='%Y%m%d')
+        # Get paths
+        pth = os.path.join(satdat_dir, f)
 
-    # Get paths
-    pth = os.path.join(satdat_dir, f)
-    # Get same file from bc folder
-    # Load TROPOMI/GEOS-Chem and Jacobian matrix data from the .pkl file
-    obj = load_obj(pth)
-    # If there aren't any TROPOMI observations on this day, skip
-    if obj["obs_GC"].shape[0] == 0:
-        continue
-    # Otherwise, grab the TROPOMI/GEOS-Chem data
-    obs_GC_temp = obj["obs_GC"]
+        # Load TROPOMI/GEOS-Chem and Jacobian matrix data from the .pkl file
+        obj = load_obj(pth)
 
-    # concatenate obs data
-    tropomi = np.concatenate((tropomi, obs_GC_temp[:, 0]))
-    geos_prior = np.concatenate((geos_prior, obs_GC_temp[:, 1]))
-    lon = np.concatenate((lon, obs_GC_temp[:, 2]))
-    lat = np.concatenate((lat, obs_GC_temp[:, 3]))
-    obs_count = np.concatenate((obs_count, obs_GC_temp[:, 4]))
-    # iSat = np.concatenate((iSat, obs_GC_temp[:,4]))
-    # jSat = np.concatenate((jSat, obs_GC_temp[:,5]))
+        # If no observations, skip
+        if obj["obs_GC"].shape[0] == 0:
+            continue
+        
+        obs_GC_temp = obj["obs_GC"]
 
-    # append obs data to get for full year
-    if i == 0:
-        obs_GC = obs_GC_temp
+        if is_data_converted:
+            ind = np.where(
+                (obs_GC_temp[:, 2] >= -180) & (obs_GC_temp[:, 2] <= 177.5) &
+                (obs_GC_temp[:, 3] >= -60) & (obs_GC_temp[:, 3] <= 88) &
+                (np.round(obs_GC_temp[:, 4]) > 0)
+            )[0]
+        else:
+            ind = np.where(
+                (obs_GC_temp[:, 2] >= -180) & (obs_GC_temp[:, 2] <= 177.5) &
+                (obs_GC_temp[:, 3] >= -60) & (obs_GC_temp[:, 3] <= 88)
+            )[0]
+
+        # Skip if no data in bounds
+        if len(ind) == 0:
+            continue
+
+        # TROPOMI and GEOS-Chem data within bounds
+        obs_GC_temp = obs_GC_temp[ind, :]
+
+        # Concatenate extracted data
+        tropomi = np.concatenate((tropomi, obs_GC_temp[:, 0]))
+        geos_prior = np.concatenate((geos_prior, obs_GC_temp[:, 1]))
+        lon = np.concatenate((lon, obs_GC_temp[:, 2]))
+        lat = np.concatenate((lat, obs_GC_temp[:, 3]))
+        obs_count = np.concatenate((obs_count, obs_GC_temp[:, 4]))
+
+        # Append to full-year dataset
+        if i == 0:
+            obs_GC = obs_GC_temp
+        else:
+            obs_GC = np.append(obs_GC, obs_GC_temp, axis=0)
+
+        # Append time data
+        time.extend([starttime] * obs_GC_temp.shape[0])
+
+    # Convert to numpy arrays
+    time = np.array(time)
+
+    # Save extracted data
+    np.savez(save_path + "gc_ch4_prior.npz", xch40=geos_prior)
+    np.savez(save_path + "obs_tropomi.npz", y=tropomi)
+    np.savez(save_path + "lat.npz", lat=lat)
+    np.savez(save_path + "lon.npz", lon=lon)
+    np.savez(save_path + "obs_count.npz", obs_count=obs_count)
+    np.savez(save_path + "time.npz", time=time)
+
+    print(f"Saved extracted data to {save_path}")
+
+if __name__ == "__main__":
+    year = int(sys.argv[1])
+
+    # Define paths
+    if year == 2019:
+        base_path = f"/n/holylfs06/LABS/jacob_lab2/Lab/mhe/Global_{year}_burnin/inversion/"
+        save_base = f"/n/holylfs05/LABS/jacob_lab/Users/mhe/Global_{year}_annual/"
     else:
-        obs_GC = np.append(obs_GC, obs_GC_temp, axis=0)
+        base_path = f"/n/holylfs06/LABS/jacob_lab2/Lab/mhe/Global_{year}_annual/inversion/"
+        save_base = f"/n/holylfs05/LABS/jacob_lab/Users/mhe/Global_{year}_annual/"
 
-    # append time data (same time for each individual file)
-    time.extend([starttime] * obs_GC_temp.shape[0])
+    data_viz_folder = base_path + "data_visualization/"
+    save_viz_folder = save_base + "data_viz_extracted_fullyear/"
+    
+    data_converted_folder = base_path + "data_converted/"
+    save_converted_folder = save_base + "data_converted_extracted_fullyear/"
 
-# convert to numpy array
-time = np.array(time)
-
-gc_ch4_prior = {"xch40": geos_prior}
-obs_tropomi = {"y": tropomi}
-lat = {"lat": lat}
-lon = {"lon": lon}
-obs_count = {"obs_count": obs_count}
-# iSat = {"iSat": iSat}
-# jSat = {"jSat": jSat}
-time = {"time": time}
-
-np.savez(save_path+f"gc_ch4_prior.npz", **gc_ch4_prior)
-np.savez(save_path+f"obs_tropomi.npz", **obs_tropomi)
-np.savez(save_path+f"lat.npz", **lat)
-np.savez(save_path+f"lon.npz", **lon)
-np.savez(save_path+f"obs_count.npz", **obs_count)
-# np.savez(save_path+f"iSat.npz", **iSat)
-# np.savez(save_path+f"jSat.npz", **jSat)
-np.savez(save_path+f"time.npz", **time)
-
-print("Saved all observation data")
+    extract(data_viz_folder, save_viz_folder, year, is_data_converted=False)
+    extract(data_converted_folder, save_converted_folder, year, is_data_converted=True)
