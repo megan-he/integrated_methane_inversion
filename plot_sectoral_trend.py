@@ -2,108 +2,74 @@ import xarray as xr
 import numpy as np
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
-import colorcet as cc
+import cartopy
 from src.inversion_scripts.utils import plot_field
 
-def calc_sectoral_trend(sector_name, year_list, oil_gas=False, wastewater_landfills=False):
+invdir = f"/n/holylfs06/LABS/jacob_lab2/Lab/mhe"
+years = [2019, 2020, 2021, 2022, 2023]
+sector = "Wetlands"
+oil_gas = True if sector == "OG" else False
+waste = True if sector == "Wastewater_Landfills_OtherAnth" else False # combine due to low ability of inversion to separate these sectors
 
-    trend_list = []
-    areas = []
-    
-    # Load posterior datasets for each year
-    for year in year_list:
-        if year == 2019:
-            posterior_ds = xr.load_dataset(f"/n/holylfs05/LABS/jacob_lab/Users/mhe/Global_{year}_burnin/inversion/posterior_ds.nc")
-        else:
-            posterior_ds = xr.load_dataset(f"{invdir}/Global_{year}_annual/inversion/posterior_ds.nc")
-        
-        if oil_gas:
-            posterior_sectoral = posterior_ds["EmisCH4_Oil"] + posterior_ds["EmisCH4_Gas"]
-        elif wastewater_landfills:
-            posterior_sectoral = posterior_ds["EmisCH4_Wastewater"] + posterior_ds["EmisCH4_Landfills"] + posterior_ds["EmisCH4_OtherAnth"]
-        else:
-            posterior_sectoral = posterior_ds[f"EmisCH4_{sector_name}"]
-        trend_list.append(posterior_sectoral)
-        areas.append(posterior_ds["AREA"])
+# Load state vector
+state_vector = xr.open_dataset(f"{invdir}/Global_2020_annual/StateVector.nc")
+state_vector_labels = state_vector["StateVector"]
+last_ROI_element = int(
+    np.nanmax(state_vector_labels.values) - 0
+)
+mask = state_vector_labels <= last_ROI_element
 
-    trend_list_Tg_y = [
-        trend_list[i] * areas[i] * 86400 * 365 * 1e-9 # convert to Tg/y
-        for i in range(len(trend_list) - 1)
-    ]
+emissions_list = []
+areas = []
 
-    # Calculate year-to-year differences
-    diff_list = [
-        (trend_list[i+1] - trend_list[i]) * areas[i] * 86400 * 365 * 1e-9 # convert to Tg/y
-        for i in range(len(trend_list) - 1)
-    ]
+for year in years:
+    if year == 2019:
+        posterior_ds = xr.load_dataset(f"{invdir}/Global_{year}_burnin/inversion/posterior_ds.nc")
+    else:
+        posterior_ds = xr.load_dataset(f"{invdir}/Global_{year}_annual/inversion/posterior_ds.nc")
 
-    # Take average of differences
-    avg_diffs = sum(diff_list) / (len(year_list)-1) # Tg
+    area = posterior_ds["AREA"]
 
-    # Set very small values to NaNs. then calculate percent difference between latest year and first year
-    last_year = trend_list_Tg_y[-1].where(trend_list_Tg_y[-1] > 0.001, np.nan) # a bit arbitrary threshold to make visualization look better
-    first_year = trend_list_Tg_y[0].where(trend_list_Tg_y[0] > 0.001, np.nan)
+    if oil_gas:
+        posterior = posterior_ds["EmisCH4_Oil"] + posterior_ds["EmisCH4_Gas"]
+    elif waste:
+        posterior = posterior_ds["EmisCH4_Wastewater"] + posterior_ds["EmisCH4_Landfills"] + posterior_ds["EmisCH4_OtherAnth"]
+    else:
+        posterior = posterior_ds[f"EmisCH4_{sector}"]
 
-    diff_percent = (last_year - first_year)/first_year * 100
+    posterior *= area # convert to kg/s
+    emissions_list.append(posterior)
 
-    return avg_diffs, diff_percent
+# stack emissions along time dimension and assign years
+emissions = xr.concat(emissions_list, dim="year")
+emissions = emissions.assign_coords(year=("year", np.array(years)))
 
+# Conversion for Tg/yr2
+conversion = (86400 * 365 * 1e-9)
 
-if __name__ == "__main__":
+# Fit a linear trend using polyfit
+trend = (emissions.where(mask) * conversion).polyfit(dim="year", deg=1)["polyfit_coefficients"].sel(degree=1)
 
-    invdir = f"/n/holylfs06/LABS/jacob_lab2/Lab/mhe"
-    years = [2019, 2020, 2021, 2022, 2023]
+# Plot the linear trend across years
+fig = plt.figure(figsize=(12, 8))
+plt.rcParams.update({"font.size": 16})
+ax = fig.subplots(1, 1, subplot_kw={"projection": ccrs.PlateCarree()})
 
-    sector = "Wetlands"
-    oil_gas = True if sector == "OG" else False
-    wastewater_landfills = True if sector == "Wastewater_Landfills_OtherAnth" else False # combine due to low ability of inversion to separate these sectors
+plot_save_path = "sectoral_trend_plots"
 
-    posterior_sector_absolute, posterior_sector_percent = calc_sectoral_trend(sector, years, oil_gas, wastewater_landfills)
-
-    # Load state vector
-    state_vector = xr.load_dataset(f"{invdir}/Global_2020_annual/StateVector.nc")
-    state_vector_labels = state_vector["StateVector"]
-    last_ROI_element = int(
-        np.nanmax(state_vector_labels.values) - 0
-    )
-    mask = state_vector_labels <= last_ROI_element
-
-    # Plot posterior emissions
-    fig = plt.figure(figsize=(24, 8))
-    plt.rcParams.update({"font.size": 16})
-    ax1, ax2 = fig.subplots(1, 2, subplot_kw={"projection": ccrs.PlateCarree()})
-
-    plot_save_path = "sectoral_trend_plots"
-
-    plot_field(
-        ax1,
-        posterior_sector_absolute,
-        cmap='RdBu_r',
-        lon_bounds=[-170, 167.5],
-        lat_bounds=[-60, 80],
-        vmin=-0.3,
-        vmax=0.3,
-        title=f"Absolute {sector.lower()} trend {years[0]}-{years[-1]}",
-        cbar_label="Tg/a",
-        only_ROI=True,
-        state_vector_labels=state_vector_labels,
-        last_ROI_element=last_ROI_element,
-        is_regional=False,
-    )
-
-    plot_field(
-        ax2,
-        posterior_sector_percent,
-        cmap='RdBu_r',
-        lon_bounds=[-170, 167.5],
-        lat_bounds=[-60, 80],
-        vmin=-100,
-        vmax=100,
-        title=f"Relative {sector.lower()} trend {years[0]}-{years[-1]}",
-        cbar_label="%",
-        only_ROI=True,
-        state_vector_labels=state_vector_labels,
-        last_ROI_element=last_ROI_element,
-        is_regional=False,
-        save_path=plot_save_path
-    )
+plot_field(
+    ax,
+    trend,
+    cmap='RdBu_r',
+    lon_bounds=[-170, 167.5],
+    lat_bounds=[-60, 80],
+    vmin=-0.2,
+    vmax=0.2,
+    title=f"{sector} trend {years[0]}-{years[-1]}",
+    cbar_label=r"$\Delta$ Emissions ($Tg\ a^{-2}$)",
+    only_ROI=True,
+    state_vector_labels=state_vector_labels,
+    last_ROI_element=last_ROI_element,
+    is_regional=True,
+    save_path=plot_save_path
+)
