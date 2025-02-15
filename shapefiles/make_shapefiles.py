@@ -16,7 +16,7 @@ middle_east = ['Saudi Arabia', 'Yemen', 'Oman', 'Iraq', 'Israel', 'Lebanon', 'Jo
 southeast_asia = ['Myanmar', 'Vietnam', 'Laos', 'Thailand', 'Cambodia', 'East Timor', 
                 'Malaysia', 'Singapore', 'Indonesia', 'Brunei', 'Philippines']
 japan_koreas = ['Japan', 'South Korea', 'North Korea']
-india_pakistan = ['India', 'Pakistan']
+south_asia = ['India', 'Pakistan', 'Bangladesh']
 
 # load state vector
 sv_path = "/n/holylfs06/LABS/jacob_lab2/Lab/mhe/Global_2023_annual/StateVector.nc"
@@ -85,19 +85,19 @@ for c in indiv_countries:
         print(f"Saved {c}")
 
 # replace continent column for Japan, S Korea, N Korea
-# replace continent column for India, Pakistan
+# replace continent column for India, Pakistan, Bangladesh
 gdf_region = gdf_world_crs.copy()
 gdf_region.loc[gdf_region['name'].isin(japan_koreas), 'continent'] = "Japan/Koreas"
-gdf_region.loc[gdf_region['name'].isin(india_pakistan), 'continent'] = "India/Pakistan"
+gdf_region.loc[gdf_region['name'].isin(south_asia), 'continent'] = "South Asia"
 
 gdf_japan_koreas = gdf_region[gdf_region['continent'] == 'Japan/Koreas'].dissolve()
-gdf_india_pakistan = gdf_region[gdf_region['continent'] == 'India/Pakistan'].dissolve()
+gdf_south_asia = gdf_region[gdf_region['continent'] == 'South Asia'].dissolve()
 
 # save all necessary shapefiles
 gdf_japan_koreas.to_file("regions/japan-koreas.shp")
 print("Saved Japan and Koreas")
-gdf_india_pakistan.to_file("regions/india-pakistan.shp")
-print("Saved India and Pakistan")
+gdf_south_asia.to_file("regions/south-asia.shp")
+print("Saved South Asia")
     
 # process multi-country regions
 gdf_region = gdf_world_crs.copy()
