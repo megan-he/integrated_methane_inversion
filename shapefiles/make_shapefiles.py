@@ -17,6 +17,7 @@ southeast_asia = ['Myanmar', 'Vietnam', 'Laos', 'Thailand', 'Cambodia', 'East Ti
                 'Malaysia', 'Singapore', 'Indonesia', 'Brunei', 'Philippines']
 japan_koreas = ['Japan', 'South Korea', 'North Korea']
 south_asia = ['India', 'Pakistan', 'Bangladesh']
+central_asia = ['Kazakhstan', 'Uzbekistan', 'Turkmenistan', 'Tajikistan', 'Kyrgyzstan', 'Afghanistan']
 
 # load state vector
 sv_path = "/n/holylfs06/LABS/jacob_lab2/Lab/mhe/Global_2023_annual/StateVector.nc"
@@ -106,15 +107,20 @@ for i, country in enumerate(gdf_region['name']):
         gdf_region.loc[i, 'continent'] = 'Middle East'
     elif country in southeast_asia:
         gdf_region.loc[i, 'continent'] = 'Southeast Asia'
+    elif country in central_asia:
+        gdf_region.loc[i, 'continent'] = 'Central Asia'
 
 gdf_middleeast = gdf_region[gdf_region['continent'] == 'Middle East'].dissolve()
 gdf_se_asia = gdf_region[gdf_region['continent'] == 'Southeast Asia'].dissolve()
+gdf_central_asia = gdf_region[gdf_region['continent'] == 'Central Asia'].dissolve()
 
 # save all necessary shapefiles
 gdf_middleeast.to_file("regions/middle-east.shp")
 print("Saved Middle East")
 gdf_se_asia.to_file("regions/southeast-asia.shp")
 print("Saved Southeast Asia")
+gdf_central_asia.to_file("regions/central-asia.shp")
+print("Saved Central Asia")
 
 gdf_europe = gdf_world_crs[(gdf_world['continent'] == 'Europe') & (gdf_world['name'] != 'Russia')].dissolve()
 gdf_europe.to_file("regions/europe.shp")
