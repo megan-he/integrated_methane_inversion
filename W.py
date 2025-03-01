@@ -139,6 +139,29 @@ def aggregate_matrix(statevector, emissions, n_elements):
 
     return W_agg, W_agg_NH, W_agg_SH
 
+def emis_matrix(statevector, emissions, n_elements):
+    '''
+    Aggregate anthropogenic and wetland emissions, and generate W matrix
+    '''
+    cols = ['Anthropogenic', 'Wetland']
+    W_agg = pd.DataFrame(0, index=range(n_elements), columns=cols)
+
+    emissions_copy = emissions.copy()
+    emis_anthro = xr.zeros_like(emissions_copy['EmisCH4_Total'])
+    anthro_sectors = ['Reservoirs', 'BiomassBurn', 'OtherAnth', 'Rice', 'Wastewater', 'Landfills', 'Livestock', 'Coal', 'Gas', 'Oil']
+    for s in anthro_sectors:
+        emis_anthro += emissions_copy['EmisCH4_'+s].squeeze()
+    emis_wetlands = emissions_copy['EmisCH4_Wetlands'].squeeze()
+
+    # Fill first column with prior anthropogenic emissions, second column with prior wetland emissions
+    emis_anthro_copy = clusters_2d_to_1d(statevector, emis_anthro)
+    emis_wetlands_copy = clusters_2d_to_1d(statevector, emis_wetlands)
+
+    W_agg['Anthropogenic'][:len(emis_anthro_copy)] = emis_anthro_copy
+    W_agg['Wetland'][:len(emis_wetlands_copy)] = emis_wetlands_copy
+
+    return W_agg
+
 
 def sectoral_matrix(statevector, emissions, n_elements, include_oh=False, include_BCs=False):
     '''
@@ -305,15 +328,22 @@ def plot_correlation(w_matrix, name=None):
         A_temp = inversion_result["A"]
         A = np.delete(np.delete(A_temp, -2, axis=0), -2, axis=1)
 
-    else:
+    elif name == "aggregate":
         # Includes emission elements and OH elements
         xhat = inversion_result["xhat"]
         S_post = inversion_result["S_post"]
         A = inversion_result["A"]
 
+    else:
+        # Only emission elements
+        xhat = inversion_result["xhat"][:-2]
+        S_post = inversion_result["S_post"][:-2, :-2]
+        A = inversion_result["A"][:-2, :-2]
+
     _, _, pearson, a_red = source_attribution(w, xhat, S_post, A)
     cols = pearson.columns.tolist()
-
+    print(f"Pearson's coefficient = {pearson.iloc[0,1]:.2f}")
+    
     mean = [0, 0]
 
     def plot_ellipse(corr_matrix, mean, ax, n_std=2.0, **kwargs):
@@ -451,11 +481,14 @@ if __name__ == "__main__":
 
     # Construct global emissions and OH aggregate matrix (TODO: bug in aggregate_matrix that inflates values if this is called before regional_matrix)
     w_aggregate, w_aggregate_NH, w_aggregate_SH = aggregate_matrix(sv, ds, n_elements)
+    # Construct anthropogenic and wetland emissions matrix
+    w_emis = emis_matrix(sv, ds, n_elements)
 
     # Plot
     plot_correlation(w_sectoral, name='sectoral')
     plot_correlation(w_regional, name='regional')
     plot_correlation(w_aggregate, name='aggregate')
+    plot_correlation(w_emis, name='emissions')
     plot_correlation(w_aggregate_NH, name='NH')
     plot_correlation(w_aggregate_SH, name='SH')
 
