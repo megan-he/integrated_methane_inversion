@@ -11,6 +11,7 @@ import cartopy.crs as ccrs
 # define regions
 continents = ['Africa', 'South America', 'Oceania'] # Europe is defined below without Russia
 indiv_countries = ['China', 'Canada', 'United States of America', 'Russia']
+east_africa = ['South Sudan', 'Ethiopia', 'Kenya', 'Uganda', 'Tanzania', 'Zambia', 'Mozambique', 'Zimbabwe', 'Madagascar']
 middle_east = ['Saudi Arabia', 'Yemen', 'Oman', 'Iraq', 'Israel', 'Lebanon', 'Jordan',
                   'Syria', 'Turkey', 'Iran', 'United Arab Emirates', 'Kuwait', 'Qatar']
 southeast_asia = ['Myanmar', 'Vietnam', 'Laos', 'Thailand', 'Cambodia', 'East Timor', 
@@ -105,18 +106,23 @@ gdf_region = gdf_world_crs.copy()
 for i, country in enumerate(gdf_region['name']):
     if country in middle_east:
         gdf_region.loc[i, 'continent'] = 'Middle East'
+    elif country in east_africa:
+        gdf_region.loc[i, 'continent'] = 'East Africa'
     elif country in southeast_asia:
         gdf_region.loc[i, 'continent'] = 'Southeast Asia'
     elif country in central_asia:
         gdf_region.loc[i, 'continent'] = 'Central Asia'
 
 gdf_middleeast = gdf_region[gdf_region['continent'] == 'Middle East'].dissolve()
+gdf_eastafrica = gdf_region[gdf_region['continent'] == 'East Africa'].dissolve()
 gdf_se_asia = gdf_region[gdf_region['continent'] == 'Southeast Asia'].dissolve()
 gdf_central_asia = gdf_region[gdf_region['continent'] == 'Central Asia'].dissolve()
 
 # save all necessary shapefiles
 gdf_middleeast.to_file("regions/middle-east.shp")
 print("Saved Middle East")
+gdf_eastafrica.to_file("regions/east-africa.shp")
+print("Saved East Africa")
 gdf_se_asia.to_file("regions/southeast-asia.shp")
 print("Saved Southeast Asia")
 gdf_central_asia.to_file("regions/central-asia.shp")
