@@ -475,6 +475,22 @@ run_jacobian() {
 
         # Run the prior simulation
         JacobianRunsDir=${RunDirs}/jacobian_runs
+        # Apply previous year's posterior OH SF
+        cd ${JacobianRunsDir}/${RunName}_0000
+
+        # COPY PerturbationsOH.txt BEFORE RUNNING PRIOR SIMULATION
+        # Modify OH scale factor in HEMCO config (to apply previos year's posterior OH SF)
+        sed -i -e "s| OH_pert_factor  1.0 - - - xy 1 1| OH_pert_factor PerturbationsOH.txt - - - xy 1 1|g" HEMCO_Config.rc
+
+        HcoPrevLineMask='CH4_STATE_VECTOR'
+        HcoNextLineMask='* HEMIS_MASK $ROOT\/MASKS\/v2024-08\/hemisphere_mask.01x01.nc Hemisphere 2000\/1\/1\/0 C xy 1 * - 1 1 
+'
+        if ! grep -q "HEMIS_MASK" HEMCO_Config.rc; then
+            sed -i "/${HcoPrevLineMask}/a ${HcoNextLineMask}" HEMCO_Config.rc
+        fi
+
+        printf "OH optimized perturbation values set to previous year's posterior OH SF\n"
+
         cd ${JacobianRunsDir}
 
         # Submit prior simulation to job scheduler
