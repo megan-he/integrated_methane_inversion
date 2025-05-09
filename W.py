@@ -10,6 +10,12 @@ from src.inversion_scripts.utils import get_mean_emissions
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 
+import matplotlib
+import matplotlib.font_manager as fm
+font_path = '/n/home12/mhe/.cache/matplotlib/Helvetica.ttf'
+fm.fontManager.addfont(font_path)
+matplotlib.rcParams['font.family'] = 'Helvetica'
+
 
 def clusters_2d_to_1d(clusters, data, fill_value=0):
     '''
@@ -110,6 +116,26 @@ def grid_shape_overlap(clusters, x, y, name=None):
 
     return mask
 
+def get_OH_sf(year):
+    '''
+    Read in relevant OH scale factors
+    '''
+    df = pd.read_csv('figures/data/OH_SF.csv', index_col=0)
+    # Original prior OH concentration
+    OH_nh = 10.72 * 1e11 # molec/m3
+    OH_sh = 9.99 * 1e11 # molec/m3
+    if year == 2019:
+        # No OH scale factor
+        pass
+    else:
+        # Apply OH scale factors from previous year's posterior
+        xhat_OH_nh = df.loc[year - 1, 'OH_nh']
+        xhat_OH_sh = df.loc[year - 1, 'OH_sh']
+        OH_nh *= xhat_OH_nh
+        OH_sh *= xhat_OH_sh
+
+    return OH_nh, OH_sh
+
 def aggregate_matrix(statevector, emissions, n_elements, year):
     '''
     Aggregate all emissions, aggregate global OH, and generate W matrix
@@ -125,20 +151,7 @@ def aggregate_matrix(statevector, emissions, n_elements, year):
 
     emis_copy = clusters_2d_to_1d(statevector, emis_copy)
 
-    # read in OH scale factors
-    df = pd.read_csv('figures/data/OH_SF.csv', index_col=0)
-    # Original prior OH concentration
-    OH_nh = 10.72 * 1e11 # molec/m3
-    OH_sh = 9.99 * 1e11 # molec/m3
-    if year == 2019:
-        # No OH scale factor
-        pass
-    else:
-        # Apply OH scale factors from previous year's posterior
-        xhat_OH_nh = df.loc[year - 1, 'OH_nh']
-        xhat_OH_sh = df.loc[year - 1, 'OH_sh']
-        OH_nh *= xhat_OH_nh
-        OH_sh *= xhat_OH_sh
+    OH_nh, OH_sh = get_OH_sf(year)
 
     W_agg['Emissions'][:len(emis_copy)] = emis_copy # kg/s
 
@@ -172,7 +185,7 @@ def emis_matrix(statevector, emissions, n_elements):
     return W_agg
 
 
-def sectoral_matrix(statevector, emissions, n_elements, include_oh=False, include_BCs=False):
+def sectoral_matrix(statevector, emissions, n_elements, include_BCs=False):
     '''
     Group emissions by sector and generate W matrix
     '''
@@ -188,20 +201,8 @@ def sectoral_matrix(statevector, emissions, n_elements, include_oh=False, includ
         W[s] = emis
     
     print(f"W shape: {W.values.shape}")
-
-    if include_oh:
-        W_withOH = pd.DataFrame(0, index=range(n_elements + 2), columns=range(len(sectors) + 2))
-        W_withOH.iloc[:n_elements, :len(sectors)] = W # populate with emissions W
-
-        # Set the last two diagonal elements to 1 for hemispheric OH (because prior scaling factor is 1)
-        for i in range(0,2):
-            W_withOH.iloc[W.shape[0] + i, W.shape[1] + i] = 1
-
-        W_withOH.columns = list(W.columns) + ["NH OH", "SH OH"]
-
-        return W_withOH
     
-    elif include_BCs:
+    if include_BCs:
         # Ensure n_elements matches the number of rows in W
         if W.shape[0] != n_elements:
             raise ValueError(f"Mismatch: W has {W.shape[0]} rows but n_elements is {n_elements}")
@@ -231,7 +232,7 @@ def sectoral_matrix(statevector, emissions, n_elements, include_oh=False, includ
     else: 
         return W
 
-def regional_matrix(statevector, emissions, n_elements, regions, w_mask, include_oh=False):
+def regional_matrix(statevector, emissions, n_elements, regions, w_mask, year, include_oh=False):
     '''
     Group emissions by custom region/continent and generate W matrix
     '''
@@ -255,8 +256,10 @@ def regional_matrix(statevector, emissions, n_elements, regions, w_mask, include
         W_withOH.iloc[:n_elements, :len(w_mask.columns)] = w_mask # populate with emissions W
 
         # Set the last two diagonal elements to 1 for hemispheric OH (because prior scaling factor is 1)
-        W_withOH.iloc[4111, len(w_mask.columns)] = 1  # N. Hemisphere OH
-        W_withOH.iloc[4112, len(w_mask.columns)+1] = 1  # S. Hemisphere OH
+        start_index = n_elements  # Start index for the new diagonal elements
+        OH_nh, OH_sh = get_OH_sf(year)
+        W_withOH.iloc[start_index, len(w_mask.columns)] = OH_nh  # N. Hemisphere OH
+        W_withOH.iloc[start_index + 1, len(w_mask.columns)+1] = OH_sh  # S. Hemisphere OH
 
         W_withOH.columns = list(w_mask.columns) + ["NH OH", "SH OH"]
 
@@ -337,17 +340,16 @@ def plot_correlation(w_matrix, name=None):
     #     A_temp = inversion_result["A"]
     #     A = np.delete(np.delete(A_temp, -2, axis=0), -2, axis=1)
 
-    if name == "aggregate":
-        # Includes emission elements and OH elements
-        xhat = inversion_result["xhat"]
-        S_post = inversion_result["S_post"]
-        A = inversion_result["A"]
-
-    else:
+    if name == "sectoral":
         # Only emission elements
         xhat = inversion_result["xhat"][:-2]
         S_post = inversion_result["S_post"][:-2, :-2]
         A = inversion_result["A"][:-2, :-2]
+    else:
+        # Includes emission elements and OH elements
+        xhat = inversion_result["xhat"]
+        S_post = inversion_result["S_post"]
+        A = inversion_result["A"]
 
     _, _, pearson, a_red = source_attribution(w, xhat, S_post, A)
     cols = pearson.columns.tolist()
@@ -429,7 +431,7 @@ def plot_correlation(w_matrix, name=None):
 
     # Plot posterior error correlation matrix
     fig = plt.figure(figsize=(8, 8))
-    plt.rcParams.update({"font.size": 16})
+    plt.rcParams.update({"font.size": 18})
     ax = fig.add_subplot(111)
     cax = ax.matshow(pearson.corr(), origin='lower', cmap='RdBu_r', vmin=-1, vmax=1)
     ax.set_xticks(range(len(cols)))
@@ -437,7 +439,7 @@ def plot_correlation(w_matrix, name=None):
     ax.xaxis.set_ticks_position('bottom')
     ax.set_xticklabels(cols, rotation=90)
     ax.set_yticklabels(cols)
-    cbar = fig.colorbar(cax)
+    cbar = fig.colorbar(cax, fraction=0.046, pad=0.04)
     cbar.ax.tick_params()
     plt.tight_layout()
 
@@ -445,7 +447,7 @@ def plot_correlation(w_matrix, name=None):
 
 if __name__ == "__main__":
 
-    year = 2023
+    year = 2024
     start_date = f"{year}0101"
     end_date = f"{int(year)+1}0101"
     shapefile_path = "shapefiles/merged.shp" # the merged shapefile is created using make_shapefiles.py
@@ -469,17 +471,17 @@ if __name__ == "__main__":
     print(f"Total prior (incl. soil sink): {total.values:.2f} Tg/yr")
 
     # Save annual mean W sectoral matrix
-    include_oh = True
-    w_sectoral = sectoral_matrix(sv, ds, n_elements, include_oh)
+    w_sectoral = sectoral_matrix(sv, ds, n_elements)
     w_total = w_sectoral.to_numpy().sum() * 86400 * 365 * 1e-9
     print(f"Total from sectoral W matrix: {w_total:.2f} Tg/yr") # this should be slightly lower than the total prior from above?
     # w_sectoral.to_csv(f'{data_dir}/w_{year}_annual_sectors.csv', index=False)
 
     # Save annual mean W regional matrix
+    include_oh = True
     regions = shapefile.Reader(shapefile_path, encoding='windows-1252')
     unique_regions = np.unique([r.record[1] for r in regions.shapeRecords()])
     w_regions_mask = pd.DataFrame(columns=unique_regions)
-    w_regional = regional_matrix(sv, ds, n_elements, regions, w_regions_mask, include_oh)
+    w_regional = regional_matrix(sv, ds, n_elements, regions, w_regions_mask, year, include_oh)
     w_regional.to_csv(f'{data_dir}/w_{year}_annual_regions.csv', index=False)
     if include_oh:
         w_total = w_regional.iloc[:-2,:-2].to_numpy().sum() * 86400 *365 * 1e-9
