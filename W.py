@@ -245,7 +245,7 @@ def regional_matrix(statevector, emissions, n_elements, regions, w_mask, year, i
             w_mask[shape.record[1]] = grid_shape_overlap(statevector, x, y, shape.record[1])
 
     for r in w_mask.columns:
-        emis = emissions['EmisCH4_Total'].squeeze() * emissions['AREA']
+        emis = emissions['EmisCH4_Total_ExclSoilAbs'].squeeze() * emissions['AREA']
         emis = clusters_2d_to_1d(statevector, emis)
         w_mask[r] *= emis
 
@@ -441,9 +441,10 @@ def plot_correlation(w_matrix, name=None):
     ax.set_yticklabels(cols)
     cbar = fig.colorbar(cax, fraction=0.046, pad=0.04)
     cbar.ax.tick_params()
+    cbar.set_label('Correlation coefficient', fontsize=18, labelpad=10)
     plt.tight_layout()
 
-    plt.savefig(f'error_corr_plots/error_corr_{year}_{name}.png')
+    plt.savefig(f'error_corr_plots/error_corr_{year}_{name}.png',dpi=1200, bbox_inches='tight')
 
 if __name__ == "__main__":
 
