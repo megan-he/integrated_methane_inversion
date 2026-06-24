@@ -122,21 +122,19 @@ def get_OH_sf(year):
     '''
     df = pd.read_csv('figures/data/OH_SF.csv', index_col=0)
     # Original prior OH concentration
-    OH_nh = 10.72 * 1e11 # molec/m3
-    OH_sh = 9.99 * 1e11 # molec/m3
+    # OH_nh = 10.72 * 1e11 # molec/m3
+    # OH_sh = 9.99 * 1e11 # molec/m3
     if year == 2019:
         # No OH scale factor
         pass
     else:
-        # Apply OH scale factors from previous year's posterior
-        xhat_OH_nh = df.loc[year - 1, 'OH_nh']
-        xhat_OH_sh = df.loc[year - 1, 'OH_sh']
-        OH_nh *= xhat_OH_nh
-        OH_sh *= xhat_OH_sh
+        # Apply OH scale factors for the current year
+        xhat_OH_nh = df.loc[year, 'OH_nh']
+        xhat_OH_sh = df.loc[year, 'OH_sh']
 
-    return OH_nh, OH_sh
+    return xhat_OH_nh, xhat_OH_sh
 
-def aggregate_matrix(statevector, emissions, n_elements, year):
+def aggregate_matrix(statevector, emissions, n_elements):
     '''
     Aggregate all emissions, aggregate global OH, and generate W matrix
     '''
@@ -151,13 +149,11 @@ def aggregate_matrix(statevector, emissions, n_elements, year):
 
     emis_copy = clusters_2d_to_1d(statevector, emis_copy)
 
-    OH_nh, OH_sh = get_OH_sf(year)
-
     W_agg['Emissions'][:len(emis_copy)] = emis_copy # kg/s
 
-    # Fill second column with (scaled) OH prior concentration in last two rows. Everywhere else is 0 by default
-    W_agg.loc[n_elements, 'OH'] = OH_nh # molecules/m3
-    W_agg.loc[n_elements + 1, 'OH'] = OH_sh # molecules/m3
+    # Fill second column with 0.5 in last two rows. Everywhere else is 0 by default
+    W_agg.loc[n_elements, 'OH'] = 0.5 
+    W_agg.loc[n_elements + 1, 'OH'] = 0.5 
 
     return W_agg
 
@@ -252,16 +248,17 @@ def regional_matrix(statevector, emissions, n_elements, regions, w_mask, year, i
     w_mask = w_mask.rename(columns={'United States of America': 'CONUS'})
 
     if include_oh:
-        W_withOH = pd.DataFrame(0, index=range(n_elements + 2), columns=range(len(w_mask.columns) + 2))
+        W_withOH = pd.DataFrame(0, index=range(n_elements + 1), columns=range(len(w_mask.columns) + 1))
         W_withOH.iloc[:n_elements, :len(w_mask.columns)] = w_mask # populate with emissions W
 
         # Set the last two diagonal elements to 1 for hemispheric OH (because prior scaling factor is 1)
         start_index = n_elements  # Start index for the new diagonal elements
-        OH_nh, OH_sh = get_OH_sf(year)
-        W_withOH.iloc[start_index, len(w_mask.columns)] = OH_nh  # N. Hemisphere OH
-        W_withOH.iloc[start_index + 1, len(w_mask.columns)+1] = OH_sh  # S. Hemisphere OH
+        W_withOH.iloc[start_index, len(w_mask.columns)] = 1  # Global OH correlation with itself
+        # W_withOH.iloc[start_index, len(w_mask.columns)] = 0.5  # N. Hemisphere OH
+        # W_withOH.iloc[start_index + 1, len(w_mask.columns)+1] = 0.5  # S. Hemisphere OH
 
-        W_withOH.columns = list(w_mask.columns) + ["NH OH", "SH OH"]
+        W_withOH.columns = list(w_mask.columns) + ["Global OH"]
+        # W_withOH.columns = list(w_mask.columns) + ["NH OH", "SH OH"]
 
         return W_withOH
     else:
@@ -294,6 +291,11 @@ def source_attribution(w, xhat, shat=None, a=None):
         # Calculate Pearson's correlation coefficient (cov(X,Y)/stdx*stdy)
         stdev_red = np.sqrt(np.diagonal(shat_red)) 
         r_red = shat_red/(stdev_red[:, None]*stdev_red[None, :])
+        # print max abs correlation coefficient (excluding the diagonal of ones)
+        r_abs = r_red.abs()
+        np.fill_diagonal(r_abs.values, 0)
+        max_corr = r_abs.values.max()
+        print(f'Max correlation coeff = {max_corr:.2f}')
 
         # Calculate reduced averaging kernel
         # a_red = np.identity(w.shape[0]) - shat_red @ inv(sa_red)
@@ -325,27 +327,45 @@ def plot_correlation(w_matrix, name=None):
 
     w = w_matrix.T
     inversion_result = xr.load_dataset(f'{data_dir}/inversion/inversion_result.nc')
-    
-    # if name == "NH":
-    #     # Include only NH OH element
-    #     xhat = inversion_result["xhat"][:-1]
-    #     S_post = inversion_result["S_post"][:-1, :-1]
-    #     A = inversion_result["A"][:-1, :-1]
-
-    # elif name == "SH":
-    #     # Include only SH OH element
-    #     xhat = np.concatenate((inversion_result["xhat"][:-2], inversion_result["xhat"][-1:]))
-    #     S_post_temp = inversion_result["S_post"]
-    #     S_post = np.delete(np.delete(S_post_temp, -2, axis=0), -2, axis=1)
-    #     A_temp = inversion_result["A"]
-    #     A = np.delete(np.delete(A_temp, -2, axis=0), -2, axis=1)
 
     if name == "sectoral":
         # Only emission elements
         xhat = inversion_result["xhat"][:-2]
         S_post = inversion_result["S_post"][:-2, :-2]
         A = inversion_result["A"][:-2, :-2]
-    else:
+    
+    elif name == 'regional':
+        # Includes emission elements and OH elements
+        xhat_full = inversion_result["xhat"]
+        S_post_full = inversion_result["S_post"]
+        A_full = inversion_result["A"]
+
+        n_red = n_elements + 1
+        NH_idx = n_elements
+        SH_idx = n_elements + 1
+
+        # reduce xhat to global OH
+        xhat = np.concatenate([xhat_full[:n_elements],
+                        [0.5*(xhat_full[NH_idx] + xhat_full[SH_idx])]])
+        
+        # reduce S_post to global OH
+        S_post = np.zeros((n_elements + 1, n_elements + 1)) # 4112x4112
+        S_post[:n_elements, :n_elements] = S_post_full[:n_elements, :n_elements] # emission elements
+        # cross-covariances emissions vs global OH
+        S_post[:n_elements, -1] = 0.5*(S_post_full[:n_elements, NH_idx] + S_post_full[:n_elements, SH_idx])
+        S_post[-1, :n_elements] = S_post[:n_elements, -1]
+        # global OH variance
+        S_post[-1, -1] = 0.25*(S_post_full[NH_idx, NH_idx] + S_post_full[SH_idx, SH_idx]
+                                + 2*S_post_full[NH_idx, SH_idx])
+        
+        # reduce A matrix to global OH
+        w_emis = np.eye(n_elements)
+        w_temp = np.zeros((n_red, n_elements + 2))
+        w_temp[:n_elements, :n_elements] = w_emis # emissions
+        w_temp[-1, -1] = 1.0  # global OH
+        A = w_temp @ A_full.values @ w_temp.T @ np.linalg.inv((w_temp @ w_temp.T))
+    
+    else: # currently only works for 'aggregate' case
         # Includes emission elements and OH elements
         xhat = inversion_result["xhat"]
         S_post = inversion_result["S_post"]
@@ -353,6 +373,8 @@ def plot_correlation(w_matrix, name=None):
 
     _, _, pearson, a_red = source_attribution(w, xhat, S_post, A)
     cols = pearson.columns.tolist()
+
+    # print(a_red)
     
     mean = [0, 0]
 
@@ -433,7 +455,7 @@ def plot_correlation(w_matrix, name=None):
     fig = plt.figure(figsize=(8, 8))
     plt.rcParams.update({"font.size": 18})
     ax = fig.add_subplot(111)
-    cax = ax.matshow(pearson.corr(), origin='lower', cmap='RdBu_r', vmin=-1, vmax=1)
+    cax = ax.matshow(pearson, origin='lower', cmap='RdBu_r', vmin=-1, vmax=1)
     ax.set_xticks(range(len(cols)))
     ax.set_yticks(range(len(cols)))
     ax.xaxis.set_ticks_position('bottom')
@@ -444,7 +466,7 @@ def plot_correlation(w_matrix, name=None):
     cbar.set_label('Correlation coefficient', fontsize=18, labelpad=10)
     plt.tight_layout()
 
-    plt.savefig(f'error_corr_plots/error_corr_{year}_{name}.png',dpi=1200, bbox_inches='tight')
+    plt.savefig(f'error_corr_plots/TEST2.png',dpi=1200, bbox_inches='tight')
 
 if __name__ == "__main__":
 
@@ -463,9 +485,10 @@ if __name__ == "__main__":
     sv = xr.open_dataset(sv_path)
     sv = sv.to_dataarray('StateVector')
     n_elements = int(np.nanmax(sv.values)) # number of emission elements
+    print(f"Number of statevector elements: {n_elements}")
 
     ds = get_mean_emissions(start_date, end_date, prior_cache_path)
-    ds.to_netcdf(f"{data_dir}/HEMCO_diagnostics.{year}.nc")
+    # ds.to_netcdf(f"{data_dir}/HEMCO_diagnostics.{year}.nc")
     # Also check annual mean emissions
     emissions_in_kg_per_s = ds["EmisCH4_Total"] * ds["AREA"]
     total = emissions_in_kg_per_s.sum() * 86400 * 365 * 1e-9
@@ -491,18 +514,18 @@ if __name__ == "__main__":
     print(f"Total from regional W matrix: {w_total:.2f} Tg/yr")
 
     # Construct global emissions and OH aggregate matrix (TODO: bug in aggregate_matrix that inflates values if this is called before regional_matrix)
-    w_aggregate = aggregate_matrix(sv, ds, n_elements, year)
+    w_aggregate = aggregate_matrix(sv, ds, n_elements)
     # Construct anthropogenic and wetland emissions matrix
-    w_emis = emis_matrix(sv, ds, n_elements)
+    # w_emis = emis_matrix(sv, ds, n_elements)
 
     # Plot
-    plot_correlation(w_sectoral, name='sectoral')
+    # plot_correlation(w_sectoral, name='sectoral')
     plot_correlation(w_regional, name='regional')
-    plot_correlation(w_aggregate, name='aggregate')
-    plot_correlation(w_emis, name='emissions')
+    # plot_correlation(w_aggregate, name='aggregate')
+    # plot_correlation(w_emis, name='emissions')
 
     # Print OH statistics
-    xhat_OH, S_post_OH, A_OH = analyze_OH(data_dir)
-    print(f"xhat[OH]: {xhat_OH}")
-    print(f"S_post[OH]: {S_post_OH}")
-    print(f"Trace of A[OH]: {np.trace(A_OH)}")
+    # xhat_OH, S_post_OH, A_OH = analyze_OH(data_dir)
+    # print(f"xhat[OH]: {xhat_OH}")
+    # print(f"S_post[OH]: {S_post_OH}")
+    # print(f"Trace of A[OH]: {np.trace(A_OH)}")
