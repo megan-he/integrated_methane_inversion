@@ -12,6 +12,7 @@ import cartopy.crs as ccrs
 continents = ['Africa', 'South America', 'Oceania'] # Europe is defined below without Russia
 indiv_countries = ['China', 'Canada', 'United States of America', 'Russia']
 east_africa = ['South Sudan', 'Ethiopia', 'Kenya', 'Uganda', 'Tanzania', 'Zambia', 'Mozambique', 'Zimbabwe', 'Madagascar']
+central_africa = ['Chad', 'Central African Rep.', 'Congo', 'Dem. Rep. Congo', 'Gabon', 'Equatorial Guinea', 'Cameroon', 'Angola']
 middle_east = ['Saudi Arabia', 'Yemen', 'Oman', 'Iraq', 'Israel', 'Lebanon', 'Jordan',
                   'Syria', 'Turkey', 'Iran', 'United Arab Emirates', 'Kuwait', 'Qatar']
 southeast_asia = ['Myanmar', 'Vietnam', 'Laos', 'Thailand', 'Cambodia', 'East Timor', 
@@ -108,6 +109,8 @@ for i, country in enumerate(gdf_region['name']):
         gdf_region.loc[i, 'continent'] = 'Middle East'
     elif country in east_africa:
         gdf_region.loc[i, 'continent'] = 'East Africa'
+    elif country in central_africa:
+        gdf_region.loc[i, 'continent'] = 'Central Africa'
     elif country in southeast_asia:
         gdf_region.loc[i, 'continent'] = 'Southeast Asia'
     elif country in central_asia:
@@ -115,6 +118,7 @@ for i, country in enumerate(gdf_region['name']):
 
 gdf_middleeast = gdf_region[gdf_region['continent'] == 'Middle East'].dissolve()
 gdf_eastafrica = gdf_region[gdf_region['continent'] == 'East Africa'].dissolve()
+gdf_centralafrica = gdf_region[gdf_region['continent'] == 'Central Africa'].dissolve()
 gdf_se_asia = gdf_region[gdf_region['continent'] == 'Southeast Asia'].dissolve()
 gdf_central_asia = gdf_region[gdf_region['continent'] == 'Central Asia'].dissolve()
 
@@ -123,6 +127,8 @@ gdf_middleeast.to_file("regions/middle-east.shp")
 print("Saved Middle East")
 gdf_eastafrica.to_file("regions/east-africa.shp")
 print("Saved East Africa")
+gdf_centralafrica.to_file("regions/central-africa.shp")
+print("Saved Central Africa")
 gdf_se_asia.to_file("regions/southeast-asia.shp")
 print("Saved Southeast Asia")
 gdf_central_asia.to_file("regions/central-asia.shp")
