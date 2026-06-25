@@ -78,6 +78,9 @@ def calculate_interhemispheric_ratio(year, dirname):
         (met_ds['airmass'] * sh_wgt).sum(('lev', 'lat', 'lon'))
     ) / 1e5).mean()
 
+    print(f"NH OH: {NH_oh_airmasswgt.values} * 10^5 molec/cm3")
+    print(f"SH OH: {SH_oh_airmasswgt.values} * 10^5 molec/cm3")
+
     NH_SH_ratio = NH_oh_airmasswgt / SH_oh_airmasswgt
     return NH_SH_ratio.values
 
@@ -85,15 +88,14 @@ def calculate_interhemispheric_ratio(year, dirname):
 if __name__ == "__main__":
 
     # Set directories
-    # year = 2019
-    # directory = f'/n/holylfs05/LABS/jacob_lab/Users/mhe/Global_{year}_burnin/posterior_run/OutputDir/'
-    # directory = f'/n/netscratch/jacob_lab/Lab/mhe/Global_{year}_annual_edgarv7/jacobian_runs/Global_2019_annual_edgarv7_0000/OutputDir/'
+    year = 2019
+    directory = f'/n/holylfs06/LABS/jacob_lab2/Lab/mhe/Global_{year}_annual_edgarv7/jacobian_runs/Global_2019_annual_edgarv7_0000/OutputDir/'
 
-    year = 2020
-    directory = f'/n/holylfs06/LABS/jacob_lab2/Lab/mhe/Global_{year}_annual/posterior_run/OutputDir/'
+    # year = 2024
+    # directory = f'/n/holylfs06/LABS/jacob_lab2/Lab/mhe/Global_{year}_annual/posterior_run/OutputDir/'
 
-    methane_lifetime = calculate_methane_lifetime_to_oh(year, directory)
-    print(f"CH4 lifetime to OH: {methane_lifetime} yr")
+    # methane_lifetime = calculate_methane_lifetime_to_oh(year, directory)
+    # print(f"CH4 lifetime to OH: {methane_lifetime} yr")
 
     ratio = calculate_interhemispheric_ratio(year, directory)
     print(f"N/S ratio: {ratio}")

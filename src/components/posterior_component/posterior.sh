@@ -149,7 +149,7 @@ run_posterior() {
 	    else
             # Apply hemispheric OH perturbation values using mask file
             # oh_sfs=($PerturbOHValue)
-            oh_sfs=(0.90411225	0.969987556)
+            oh_sfs=(0.905414623	0.96737343)
             cp Perturbations.txt PerturbationsOH.txt
             sed -i -e "s|CH4_STATE_VECTOR|HEMIS_MASK|g" PerturbationsOH.txt
             OHPertPrevLine='DEFAULT    0     1.0'
@@ -199,7 +199,8 @@ run_posterior() {
         EndDate_i=$EndDate
         cd ${RunDirs}/inversion
         # PrevDir="${RunDirs}/spinup_run"
-        PrevDir="/n/holylfs06/LABS/jacob_lab2/Lab/mhe/Global_2022_annual/posterior_run"
+        # PrevDir="/n/holylfs06/LABS/jacob_lab2/Lab/mhe/Global_2019_annual_edgarv7/spinup_run"
+        PrevDir="/n/holylfs06/LABS/jacob_lab2/Lab/mhe/Global_2023_annual/posterior_run"
     fi
 
     # Fill missing data (first hour of simulation) in posterior output

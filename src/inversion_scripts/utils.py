@@ -248,6 +248,7 @@ def plot_field(
     levels=None,
     vmin=None,
     vmax=None,
+    extend=None,
     title=None,
     point_sources=None,
     cbar_label=None,
@@ -300,6 +301,14 @@ def plot_field(
         field = field.where((state_vector_labels <= last_ROI_element))
 
     # Plot
+    cbar_kwargs = {
+        "label": cbar_label,
+        "fraction": 0.02,
+        "pad": 0.04,
+    }
+    if extend:
+        cbar_kwargs["extend"] = extend
+
     if plot_type == "pcolormesh":
         field.plot.pcolormesh(
             cmap=cmap,
@@ -307,7 +316,7 @@ def plot_field(
             ax=ax,
             vmin=vmin,
             vmax=vmax,
-            cbar_kwargs={"label": cbar_label, "fraction": 0.03, "pad": 0.04},
+            cbar_kwargs=cbar_kwargs,
         )
     elif plot_type == "imshow":
         field.plot.imshow(

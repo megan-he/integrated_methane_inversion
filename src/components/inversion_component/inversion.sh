@@ -88,7 +88,7 @@ run_inversion() {
     sbatch --mem $InvMem \
            -c $InvCPU \
            -t $InvTime \
-           -p "huce_bigmem,bigmem,bigmem_intermediate,serial_requeue" \
+           -p $SchedulerPartition \
            -W run_inversion.sh $FirstSimSwitch; wait;
 
     # check if exited with non-zero exit code

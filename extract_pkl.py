@@ -56,6 +56,25 @@ def extract(satdat_dir, save_path, year, is_data_converted):
         obs_GC_temp = obj["obs_GC"]
 
         if is_data_converted:
+            if "20241108T" in pth:
+                print(pth)
+                print(obs_GC_temp[obs_GC_temp[:, 0] < 1850, :].shape)
+                
+                # Create a boolean mask where the first column (tropomi y) is greater than 1850
+                mask = obs_GC_temp[:, 0] > 1850
+                
+                # Apply the mask to both arrays so they remain consistent
+                obs_GC_temp = obs_GC_temp[mask, :]
+                print("removed outlier")
+
+            elif ("20240131" in pth) or ("20240217" in pth):
+                print(pth)
+                print(obs_GC_temp[obs_GC_temp[:, 0] < 1860, :].shape)
+                
+                mask = obs_GC_temp[:, 0] > 1860
+                obs_GC_temp = obs_GC_temp[mask, :]
+                print("removed outlier")
+
             ind = np.where(
                 (obs_GC_temp[:, 2] >= -180) & (obs_GC_temp[:, 2] <= 177.5) &
                 (obs_GC_temp[:, 3] >= -60) & (obs_GC_temp[:, 3] <= 88) &
@@ -94,7 +113,7 @@ def extract(satdat_dir, save_path, year, is_data_converted):
     time = np.array(time)
 
     # Save extracted data
-    np.savez(save_path + "gc_ch4_prior.npz", xch40=geos_prior)
+    np.savez(save_path + "gc_ch4_posterior.npz", xch40=geos_prior)
     np.savez(save_path + "obs_tropomi.npz", y=tropomi)
     np.savez(save_path + "lat.npz", lat=lat)
     np.savez(save_path + "lon.npz", lon=lon)
@@ -108,8 +127,8 @@ if __name__ == "__main__":
 
     # Define paths
     if year == 2019:
-        base_path = f"/n/holylfs06/LABS/jacob_lab2/Lab/mhe/Global_{year}_burnin/inversion/"
-        save_base = f"/n/holylfs05/LABS/jacob_lab/Users/mhe/Global_{year}_annual/"
+        base_path = f"/n/holylfs06/LABS/jacob_lab2/Lab/mhe/Global_{year}_annual_ResMefix_2/inversion/"
+        save_base = f"/n/holylfs05/LABS/jacob_lab/Users/mhe/Global_{year}_annual_ResMefix_2/"
     else:
         base_path = f"/n/holylfs06/LABS/jacob_lab2/Lab/mhe/Global_{year}_annual/inversion/"
         save_base = f"/n/holylfs05/LABS/jacob_lab/Users/mhe/Global_{year}_annual/"
@@ -117,8 +136,8 @@ if __name__ == "__main__":
     data_viz_folder = base_path + "data_visualization/"
     save_viz_folder = save_base + "data_viz_extracted_fullyear/"
     
-    data_converted_folder = base_path + "data_converted/"
-    save_converted_folder = save_base + "data_converted_extracted_fullyear/"
+    data_converted_folder = base_path + "data_converted_posterior/"
+    save_converted_folder = save_base + "data_posterior_extracted_fullyear/"
 
-    extract(data_viz_folder, save_viz_folder, year, is_data_converted=False)
+    # extract(data_viz_folder, save_viz_folder, year, is_data_converted=False)
     extract(data_converted_folder, save_converted_folder, year, is_data_converted=True)
